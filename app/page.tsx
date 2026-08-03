@@ -29,6 +29,9 @@ type Settlement = {
   employee: string;
   department: string;
   fundCode: string;
+  depositDate: string;
+  depositReference: string;
+  depositSource: string;
   periodStart: string;
   periodEnd: string;
   status: string;
@@ -58,13 +61,16 @@ const emptySettlement = (): Settlement => ({
   employee: "",
   department: "",
   fundCode: "",
+  depositDate: new Date().toISOString().slice(0, 10),
+  depositReference: "",
+  depositSource: "",
   periodStart: new Date().toISOString().slice(0, 10),
   periodEnd: new Date().toISOString().slice(0, 10),
-  status: "borrador",
+  status: "consignacion creada",
   advanceCents: 0,
   cashReturnedCents: 0,
   notes: "",
-  expenses: [emptyExpense()],
+  expenses: [],
   evidences: [],
 });
 
@@ -98,6 +104,7 @@ export default function Home() {
     const balance = draft.advanceCents - spent - draft.cashReturnedCents;
     return { subtotal, tax, spent, balance };
   }, [draft]);
+  const hasConsignation = Boolean(activeId);
 
   useEffect(() => {
     void loadRecords();
@@ -132,12 +139,12 @@ export default function Home() {
   async function saveSettlement(event?: FormEvent) {
     event?.preventDefault();
     if (!draft.employee.trim()) {
-      setNotice("Ingresa el nombre de quien legaliza.");
-      return;
+      setNotice("Ingresa el responsable de la consignacion.");
+      return null;
     }
-    if (!draft.expenses.some((expense) => expense.amountCents > 0 || expense.taxCents > 0)) {
-      setNotice("Agrega al menos un gasto con valor.");
-      return;
+    if (draft.advanceCents <= 0) {
+      setNotice("Ingresa el valor consignado para abrir la caja menor.");
+      return null;
     }
 
     const method = activeId ? "PUT" : "POST";
@@ -151,13 +158,14 @@ export default function Home() {
 
     if (!response.ok) {
       setNotice(data.error ?? "No se pudo guardar la legalizacion.");
-      return;
+      return null;
     }
 
     setDraft(data.settlement);
     setActiveId(data.settlement.id);
-    setNotice("Legalizacion guardada correctamente.");
+    setNotice(activeId ? "Movimiento guardado correctamente." : "Consignacion creada. Ya puedes registrar gastos.");
     await loadRecords();
+    return data.settlement as Settlement;
   }
 
   async function uploadEvidence(event: ChangeEvent<HTMLInputElement>, expenseId: string | null) {
@@ -165,8 +173,9 @@ export default function Home() {
     event.target.value = "";
     if (!file) return;
 
-    await saveSettlement();
-    const settlementId = activeId || draft.id;
+    const saved = await saveSettlement();
+    if (!saved) return;
+    const settlementId = saved.id;
     const form = new FormData();
     form.append("settlementId", settlementId);
     if (expenseId) form.append("expenseId", expenseId);
@@ -214,7 +223,7 @@ export default function Home() {
       type === "json"
         ? JSON.stringify(records, null, 2)
         : [
-            "id,empleado,area,caja,estado,anticipo,gastado,devuelto,saldo",
+            "id,responsable,area,caja,referencia_consignacion,estado,consignado,gastado,devuelto,saldo",
             ...records.map((record) => {
               const spent = record.expenses.reduce(
                 (sum, item) => sum + item.amountCents + item.taxCents,
@@ -226,6 +235,7 @@ export default function Home() {
                 record.employee,
                 record.department,
                 record.fundCode,
+                record.depositReference,
                 record.status,
                 record.advanceCents / 100,
                 spent / 100,
@@ -253,7 +263,7 @@ export default function Home() {
         <div className="topbar">
           <div>
             <p className="eyebrow">Caja menor</p>
-            <h1>Legalizacion de gastos</h1>
+            <h1>Consignacion y gastos</h1>
           </div>
           <div className="actions">
             <button type="button" onClick={() => exportFile("csv")} title="Exportar CSV">
@@ -276,11 +286,11 @@ export default function Home() {
         </div>
 
         <div className="summary-grid">
-          <Metric label="Anticipo" value={formatMoney(draft.advanceCents)} />
-          <Metric label="Gastos" value={formatMoney(totals.spent)} />
+          <Metric label="Consignado" value={formatMoney(draft.advanceCents)} />
+          <Metric label="Gastado" value={formatMoney(totals.spent)} />
           <Metric label="Devuelto" value={formatMoney(draft.cashReturnedCents)} />
           <Metric
-            label={totals.balance >= 0 ? "Por reintegrar" : "Por reembolsar"}
+            label={totals.balance >= 0 ? "Disponible" : "Excedido"}
             value={formatMoney(Math.abs(totals.balance))}
             tone={totals.balance < 0 ? "warn" : "ok"}
           />
@@ -289,13 +299,14 @@ export default function Home() {
         <form className="editor" onSubmit={saveSettlement}>
           <section className="panel details-panel">
             <div className="section-title">
-              <h2>Datos de la legalizacion</h2>
+              <h2>1. Crear consignacion</h2>
               <select
                 value={draft.status}
                 onChange={(event) => updateDraft("status", event.target.value)}
                 aria-label="Estado"
               >
-                <option value="borrador">Borrador</option>
+                <option value="consignacion creada">Consignacion creada</option>
+                <option value="registrando gastos">Registrando gastos</option>
                 <option value="en revision">En revision</option>
                 <option value="aprobado">Aprobado</option>
                 <option value="rechazado">Rechazado</option>
@@ -304,7 +315,7 @@ export default function Home() {
 
             <div className="form-grid">
               <label>
-                Responsable
+                Responsable de caja
                 <input
                   value={draft.employee}
                   onChange={(event) => updateDraft("employee", event.target.value)}
@@ -328,12 +339,36 @@ export default function Home() {
                 />
               </label>
               <label>
-                Anticipo
+                Valor consignado
                 <input
                   inputMode="numeric"
                   value={draft.advanceCents ? draft.advanceCents / 100 : ""}
                   onChange={(event) => updateDraft("advanceCents", parseMoney(event.target.value))}
                   placeholder="0"
+                />
+              </label>
+              <label>
+                Fecha consignacion
+                <input
+                  type="date"
+                  value={draft.depositDate}
+                  onChange={(event) => updateDraft("depositDate", event.target.value)}
+                />
+              </label>
+              <label>
+                Referencia
+                <input
+                  value={draft.depositReference}
+                  onChange={(event) => updateDraft("depositReference", event.target.value)}
+                  placeholder="Comprobante o recibo"
+                />
+              </label>
+              <label>
+                Origen
+                <input
+                  value={draft.depositSource}
+                  onChange={(event) => updateDraft("depositSource", event.target.value)}
+                  placeholder="Banco o caja principal"
                 />
               </label>
               <label>
@@ -366,13 +401,18 @@ export default function Home() {
 
           <section className="panel expense-panel">
             <div className="section-title">
-              <h2>Gastos</h2>
+              <h2>2. Registrar gastos</h2>
               <button
                 type="button"
                 className="ghost"
+                disabled={!hasConsignation}
                 onClick={() =>
                   setDraft((current) => ({
                     ...current,
+                    status:
+                      current.status === "consignacion creada"
+                        ? "registrando gastos"
+                        : current.status,
                     expenses: [...current.expenses, emptyExpense()],
                   }))
                 }
@@ -382,6 +422,16 @@ export default function Home() {
             </div>
 
             <div className="expense-list">
+              {!hasConsignation && (
+                <div className="empty-state">
+                  Guarda primero la consignacion para activar el registro de gastos.
+                </div>
+              )}
+              {hasConsignation && draft.expenses.length === 0 && (
+                <div className="empty-state">
+                  Aun no hay gastos. Agrega el primero para empezar a restar saldo.
+                </div>
+              )}
               {draft.expenses.map((expense, index) => {
                 const linked = draft.evidences.filter((item) => item.expenseId === expense.id);
                 return (
@@ -488,7 +538,7 @@ export default function Home() {
                             ...current,
                             expenses:
                               current.expenses.length === 1
-                                ? [emptyExpense()]
+                                ? []
                                 : current.expenses.filter((item) => item.id !== expense.id),
                           }))
                         }
@@ -520,7 +570,7 @@ export default function Home() {
 
           <section className="panel balance-panel">
             <div className="section-title">
-              <h2>Cuadre</h2>
+              <h2>Saldo de caja</h2>
               <label className="upload">
                 {uploading === "general" ? "Subiendo..." : "Soporte general"}
                 <input type="file" accept="image/*,.pdf" onChange={(event) => uploadEvidence(event, null)} />
@@ -531,7 +581,7 @@ export default function Home() {
               <strong>{formatMoney(totals.subtotal)}</strong>
               <span>IVA</span>
               <strong>{formatMoney(totals.tax)}</strong>
-              <span>Total legalizado</span>
+              <span>Total gastado</span>
               <strong>{formatMoney(totals.spent)}</strong>
               <label>
                 Efectivo devuelto
@@ -545,13 +595,13 @@ export default function Home() {
                 />
               </label>
               <strong className={totals.balance < 0 ? "negative" : "positive"}>
-                {totals.balance < 0 ? "Reembolso " : "Saldo "}
+                {totals.balance < 0 ? "Excedido " : "Disponible "}
                 {formatMoney(Math.abs(totals.balance))}
               </strong>
             </div>
 
             <button type="submit" className="save">
-              Guardar legalizacion
+              {hasConsignation ? "Guardar gastos" : "Crear consignacion"}
             </button>
             {notice && <p className="notice">{notice}</p>}
           </section>
@@ -564,7 +614,7 @@ export default function Home() {
           <span>{records.length}</span>
         </div>
         {loading && <p className="muted">Cargando...</p>}
-        {!loading && records.length === 0 && <p className="muted">Aun no hay legalizaciones.</p>}
+        {!loading && records.length === 0 && <p className="muted">Aun no hay consignaciones.</p>}
         {records.map((record) => {
           const spent = record.expenses.reduce((sum, item) => sum + item.amountCents + item.taxCents, 0);
           const balance = record.advanceCents - spent - record.cashReturnedCents;
@@ -578,8 +628,9 @@ export default function Home() {
                 }}
               >
                 <strong>{record.employee || "Sin responsable"}</strong>
-                <span>{record.fundCode || "Sin codigo"} · {record.status}</span>
-                <span>{formatMoney(spent)} · {record.evidences.length} soportes</span>
+                <span>{record.fundCode || "Sin codigo"} - {record.status}</span>
+                <span>{formatMoney(record.advanceCents)} consignado - {formatMoney(spent)} gastado</span>
+                <span>{record.evidences.length} soportes</span>
               </button>
               <div className="history-footer">
                 <span className={balance < 0 ? "negative" : "positive"}>{formatMoney(Math.abs(balance))}</span>

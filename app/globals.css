@@ -63,6 +63,12 @@ button:hover {
   transform: translateY(-1px);
 }
 
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.52;
+  transform: none;
+}
+
 input,
 select,
 textarea {
@@ -255,6 +261,15 @@ label {
   display: grid;
   gap: 10px;
   margin-top: 14px;
+}
+
+.empty-state {
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 0.92rem;
+  padding: 18px;
+  text-align: center;
 }
 
 .expense-row {
