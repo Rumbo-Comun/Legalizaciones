@@ -27,8 +27,8 @@ Usuarios locales:
 
 ```text
 proyectos@uscom.net.co / andres123
-william@local / william123
-felipe@local / felipe123
+defensa@uscom.net.co / william123
+analista@uscom.net.co / felipe123
 otto.urrea@uscom.net.co / otto123
 admin@local / admin123
 ```

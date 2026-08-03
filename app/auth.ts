@@ -43,8 +43,8 @@ export async function ensureDefaultUsers() {
   const defaults = [
     ["Administrador", "admin@local", "admin", "admin123"],
     ["ANDRES SALAS", "proyectos@uscom.net.co", "solicitante", "andres123"],
-    ["WILLIAM", "william@local", "solicitante", "william123"],
-    ["FELIPE", "felipe@local", "solicitante", "felipe123"],
+    ["WILLIAM", "defensa@uscom.net.co", "solicitante", "william123"],
+    ["FELIPE", "analista@uscom.net.co", "solicitante", "felipe123"],
     ["OTTO URREA", "otto.urrea@uscom.net.co", "revisor", "otto123"],
   ] as const;
 
