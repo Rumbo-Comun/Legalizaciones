@@ -17,6 +17,7 @@ ENV PORT=3000
 ENV WRANGLER_WRITE_LOGS=false
 ENV WRANGLER_LOG_PATH=/app/.wrangler/logs
 ENV MINIFLARE_REGISTRY_PATH=/app/.wrangler/registry
+ENV WRANGLER_PERSIST_TO=/app/.wrangler/state
 COPY --from=builder /app ./
 EXPOSE 3000
 CMD ["npm", "run", "start"]
