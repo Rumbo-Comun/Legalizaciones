@@ -1,10 +1,10 @@
 import { eq } from "drizzle-orm";
-import { env } from "cloudflare:workers";
 import { getDb } from "../../../../db";
 import { evidences, expenses, settlementAccess, settlements } from "../../../../db/schema";
 import { assignReviewers, cleanCurrency, cleanExpense, hydrateSettlement } from "../route";
 import { requireUser } from "../../../auth";
 import { notifyApprovalRequest } from "../../../notifications";
+import { deleteEvidenceFile } from "../../../storage";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -56,7 +56,7 @@ export async function PUT(request: Request, context: RouteContext) {
     const expenseRows = (payload.expenses ?? []).map((expense: unknown) =>
       cleanExpense(expense as Parameters<typeof cleanExpense>[0], id),
     );
-    const incomingIds = new Set(expenseRows.map((expense) => expense.id));
+    const incomingIds = new Set(expenseRows.map((expense: ReturnType<typeof cleanExpense>) => expense.id));
 
     for (const expense of currentExpenses) {
       if (!incomingIds.has(expense.id)) {
@@ -91,9 +91,7 @@ export async function DELETE(_request: Request, context: RouteContext) {
       return Response.json({ error: "No autorizado" }, { status: 403 });
     }
     const evidenceRows = await db.select().from(evidences).where(eq(evidences.settlementId, id));
-    if (env.EVIDENCES) {
-      await Promise.all(evidenceRows.map((evidence) => env.EVIDENCES.delete(evidence.r2Key)));
-    }
+    await Promise.all(evidenceRows.map((evidence) => deleteEvidenceFile(evidence.r2Key)));
     await db.delete(evidences).where(eq(evidences.settlementId, id));
     await db.delete(expenses).where(eq(expenses.settlementId, id));
     await db.delete(settlements).where(eq(settlements.id, id));

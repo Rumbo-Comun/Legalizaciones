@@ -1,8 +1,8 @@
 import { eq } from "drizzle-orm";
-import { env } from "cloudflare:workers";
 import { getDb } from "../../../../db";
 import { evidences, settlementAccess, settlements } from "../../../../db/schema";
 import { requireUser } from "../../../auth";
+import { deleteEvidenceFile, readEvidenceFile } from "../../../storage";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -14,7 +14,7 @@ export async function GET(_request: Request, context: RouteContext) {
     const { id } = await context.params;
     const db = getDb();
     const [evidence] = await db.select().from(evidences).where(eq(evidences.id, id));
-    if (!evidence || !env.EVIDENCES) {
+    if (!evidence) {
       return Response.json({ error: "Evidencia no encontrada" }, { status: 404 });
     }
     const [settlement] = await db.select().from(settlements).where(eq(settlements.id, evidence.settlementId));
@@ -25,12 +25,12 @@ export async function GET(_request: Request, context: RouteContext) {
       return Response.json({ error: "No autorizado" }, { status: 403 });
     }
 
-    const object = await env.EVIDENCES.get(evidence.r2Key);
-    if (!object) {
+    const file = await readEvidenceFile(evidence.r2Key).catch(() => null);
+    if (!file) {
       return Response.json({ error: "Archivo no encontrado" }, { status: 404 });
     }
 
-    return new Response(object.body, {
+    return new Response(file, {
       headers: {
         "Content-Type": evidence.contentType,
         "Content-Disposition": `inline; filename="${evidence.fileName.replaceAll('"', "")}"`,
@@ -55,8 +55,8 @@ export async function DELETE(_request: Request, context: RouteContext) {
         return Response.json({ error: "No autorizado" }, { status: 403 });
       }
     }
-    if (evidence && env.EVIDENCES) {
-      await env.EVIDENCES.delete(evidence.r2Key);
+    if (evidence) {
+      await deleteEvidenceFile(evidence.r2Key);
     }
     await db.delete(evidences).where(eq(evidences.id, id));
     return Response.json({ ok: true });

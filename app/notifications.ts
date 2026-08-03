@@ -1,5 +1,4 @@
 import { eq } from "drizzle-orm";
-import { env } from "cloudflare:workers";
 import { getDb } from "../db";
 import { reviewComments, settlements, users } from "../db/schema";
 
@@ -14,11 +13,7 @@ type SettlementForMail = typeof settlements.$inferSelect;
 const fallbackBaseUrl = "http://127.0.0.1:3020";
 
 function getRuntimeValue(key: string) {
-  const workerValue = (env as unknown as Record<string, string | undefined>)[key];
-  if (workerValue) return workerValue;
-  const processValue =
-    typeof process !== "undefined" ? process.env?.[key] : undefined;
-  return processValue || undefined;
+  return process.env?.[key] || undefined;
 }
 
 function formatCop(cents: number) {

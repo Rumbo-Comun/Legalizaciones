@@ -1,19 +1,15 @@
 import { eq } from "drizzle-orm";
-import { env } from "cloudflare:workers";
 import { getDb } from "../../../db";
 import { evidences, settlementAccess, settlements } from "../../../db/schema";
 import { hydrateSettlement } from "../settlements/route";
 import { requireUser } from "../../auth";
+import { saveEvidenceFile } from "../../storage";
 
 export async function POST(request: Request) {
   const { user, response } = await requireUser(request);
   if (response) return response;
 
   try {
-    if (!env.EVIDENCES) {
-      return Response.json({ error: "El almacenamiento de evidencias no esta disponible." }, { status: 500 });
-    }
-
     const form = await request.formData();
     const settlementId = String(form.get("settlementId") || "");
     const expenseId = form.get("expenseId") ? String(form.get("expenseId")) : null;
@@ -36,9 +32,7 @@ export async function POST(request: Request) {
 
     const id = crypto.randomUUID();
     const key = `${settlementId}/${id}-${file.name.replace(/[^a-zA-Z0-9_.-]/g, "_")}`;
-    await env.EVIDENCES.put(key, file.stream(), {
-      httpMetadata: { contentType: file.type || "application/octet-stream" },
-    });
+    await saveEvidenceFile(key, file);
     await db.insert(evidences).values({
       id,
       settlementId,

@@ -41,6 +41,7 @@ Copiar `.env.example` y configurar en Coolify:
 APP_BASE_URL=https://tu-url-de-coolify
 MAIL_FROM=Legalizaciones USCOM <proyectos@uscom.net.co>
 RESEND_API_KEY=tu_api_key_de_resend
+DATA_DIR=/app/data
 ```
 
 Para pruebas con Resend sin dominio verificado, usar:
@@ -63,12 +64,12 @@ Opcion recomendada:
 6. Agregar volumen persistente para:
 
 ```text
-/app/.wrangler
+/app/data
 ```
 
-Ese volumen conserva la base local de D1/Miniflare y soportes R2 simulados cuando se ejecuta en contenedor.
+Ese volumen conserva la base SQLite (`legalizaciones.sqlite`) y los soportes cargados en `evidencias/`.
 
-El contenedor arranca con `npm run start`, que ejecuta Wrangler local contra el build generado. Por eso Coolify debe usar el `Dockerfile` del repositorio y no un build pack de Node/Nixpacks.
+El contenedor arranca con `npm run start`, que ejecuta `next start` en Node.js. Coolify no necesita Wrangler ni Cloudflare Workers.
 
 ## Comandos
 

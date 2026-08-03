@@ -4,6 +4,7 @@ node_modules
 .vinext
 dist
 .wrangler
+.data
 work
 outputs
 .npm-cache

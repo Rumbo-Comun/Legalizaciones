@@ -222,7 +222,7 @@ export default function Home() {
       const response = await fetch("/api/settlements");
       if (response.status === 401) {
         setCurrentUser(null);
-        return;
+        return [];
       }
       const data = await response.json();
       const nextRecords = data.settlements ?? [];
