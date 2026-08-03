@@ -110,6 +110,32 @@ label {
   padding: 22px;
 }
 
+.login-shell {
+  align-items: center;
+  display: flex;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 22px;
+}
+
+.login-panel {
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: 14px;
+  max-width: 420px;
+  padding: 28px;
+  width: 100%;
+}
+
+.login-panel h1 {
+  color: var(--ink);
+  font-size: 2rem;
+  margin: 0;
+}
+
 .workbench,
 .history {
   display: flex;
@@ -122,10 +148,20 @@ label {
 .section-title,
 .actions,
 .history-footer,
-.file-tools {
+.file-tools,
+.review-grid {
   align-items: center;
   display: flex;
   gap: 10px;
+}
+
+.user-pill {
+  background: var(--mint);
+  border-radius: 6px;
+  color: var(--teal-dark);
+  font-size: 0.82rem;
+  font-weight: 800;
+  padding: 9px 10px;
 }
 
 .topbar,
@@ -152,7 +188,8 @@ label {
 }
 
 .primary,
-.save {
+.save,
+.pdf-button {
   background: var(--teal);
   border-color: var(--teal);
   color: white;
@@ -228,7 +265,9 @@ label {
 }
 
 .details-panel,
-.expense-panel {
+.expense-panel,
+.review-panel,
+.user-admin {
   grid-column: 1;
 }
 
@@ -384,12 +423,75 @@ label {
   width: 100%;
 }
 
+.pdf-button {
+  background: var(--ink);
+  border-color: var(--ink);
+  margin-top: 10px;
+  width: 100%;
+}
+
 .notice,
 .muted {
   color: var(--muted);
   font-size: 0.9rem;
   line-height: 1.45;
   margin: 12px 0 0;
+}
+
+.review-panel,
+.user-admin {
+  display: grid;
+  gap: 14px;
+}
+
+.review-grid {
+  align-items: end;
+}
+
+.review-grid label {
+  flex: 1;
+}
+
+.access-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.access-list span {
+  background: #eef5f3;
+  border-radius: 6px;
+  color: var(--ink);
+  font-size: 0.82rem;
+  padding: 7px 9px;
+}
+
+.comment-list {
+  display: grid;
+  gap: 10px;
+}
+
+.comment-list article {
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 4px;
+  padding-top: 10px;
+}
+
+.comment-list span {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.comment-list p {
+  margin: 0;
+}
+
+.user-form {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) 150px;
+  align-items: end;
 }
 
 .history {
@@ -442,6 +544,10 @@ label {
     grid-template-columns: 1fr;
   }
 
+  .user-form {
+    grid-template-columns: 1fr 1fr;
+  }
+
   .history,
   .balance-panel {
     grid-column: auto;
@@ -491,5 +597,12 @@ label {
 
   .file-tools .upload {
     flex: 1;
+  }
+
+  .review-grid,
+  .user-form {
+    align-items: stretch;
+    flex-direction: column;
+    grid-template-columns: 1fr;
   }
 }

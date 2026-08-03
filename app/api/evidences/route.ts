@@ -3,8 +3,12 @@ import { env } from "cloudflare:workers";
 import { getDb } from "../../../db";
 import { evidences, settlements } from "../../../db/schema";
 import { hydrateSettlement } from "../settlements/route";
+import { requireUser } from "../../auth";
 
 export async function POST(request: Request) {
+  const { user, response } = await requireUser(request);
+  if (response) return response;
+
   try {
     if (!env.EVIDENCES) {
       return Response.json({ error: "El almacenamiento de evidencias no esta disponible." }, { status: 500 });
@@ -23,6 +27,9 @@ export async function POST(request: Request) {
     const [settlement] = await db.select().from(settlements).where(eq(settlements.id, settlementId));
     if (!settlement) {
       return Response.json({ error: "Guarda la legalizacion antes de cargar evidencias." }, { status: 404 });
+    }
+    if (user.role !== "admin" && settlement.ownerId !== user.id) {
+      return Response.json({ error: "No autorizado" }, { status: 403 });
     }
 
     const id = crypto.randomUUID();

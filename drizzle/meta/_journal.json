@@ -15,6 +15,20 @@
       "when": 1785785947093,
       "tag": "0001_heavy_korvac",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1785787105088,
+      "tag": "0002_early_william_stryker",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1785787491750,
+      "tag": "0003_ambitious_roland_deschain",
+      "breakpoints": true
     }
   ]
 }

@@ -1,0 +1,78 @@
+import { asc, eq } from "drizzle-orm";
+import { getDb } from "../../../db";
+import { users } from "../../../db/schema";
+import { hashValue, randomToken, requireUser } from "../../auth";
+
+async function passwordParts(password: string) {
+  const salt = randomToken().slice(0, 16);
+  return { salt, hash: await hashValue(password, salt) };
+}
+
+export async function GET(request: Request) {
+  const { user, response } = await requireUser(request);
+  if (response) return response;
+  if (user.role !== "admin") {
+    return Response.json({ error: "No autorizado" }, { status: 403 });
+  }
+
+  const rows = await getDb()
+    .select({
+      id: users.id,
+      name: users.name,
+      email: users.email,
+      role: users.role,
+      active: users.active,
+    })
+    .from(users)
+    .orderBy(asc(users.name));
+  return Response.json({ users: rows });
+}
+
+export async function POST(request: Request) {
+  const { user, response } = await requireUser(request);
+  if (response) return response;
+  if (user.role !== "admin") {
+    return Response.json({ error: "No autorizado" }, { status: 403 });
+  }
+
+  try {
+    const payload = await request.json();
+    const email = String(payload.email || "").trim().toLowerCase();
+    const name = String(payload.name || "").trim();
+    const role = String(payload.role || "revisor");
+    const password = String(payload.password || "cambio123");
+
+    if (!email || !name) {
+      return Response.json({ error: "Nombre y correo son obligatorios" }, { status: 400 });
+    }
+
+    const db = getDb();
+    const [existing] = await db.select().from(users).where(eq(users.email, email));
+    const passwordInfo = await passwordParts(password);
+    if (existing) {
+      await db
+        .update(users)
+        .set({
+          name,
+          role,
+          active: 1,
+          passwordHash: passwordInfo.hash,
+          passwordSalt: passwordInfo.salt,
+        })
+        .where(eq(users.id, existing.id));
+    } else {
+      await db.insert(users).values({
+        id: crypto.randomUUID(),
+        name,
+        email,
+        role,
+        passwordHash: passwordInfo.hash,
+        passwordSalt: passwordInfo.salt,
+      });
+    }
+
+    return Response.json({ ok: true });
+  } catch (error) {
+    return Response.json({ error: error instanceof Error ? error.message : "Error guardando usuario" }, { status: 500 });
+  }
+}

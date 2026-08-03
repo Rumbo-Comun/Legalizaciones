@@ -3,14 +3,22 @@ import { env } from "cloudflare:workers";
 import { getDb } from "../../../../db";
 import { evidences, expenses, settlements } from "../../../../db/schema";
 import { cleanCurrency, cleanExpense, hydrateSettlement } from "../route";
+import { requireUser } from "../../../auth";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
 export async function PUT(request: Request, context: RouteContext) {
+  const { user, response } = await requireUser(request);
+  if (response) return response;
+
   try {
     const { id } = await context.params;
     const payload = await request.json();
     const db = getDb();
+    const [current] = await db.select().from(settlements).where(eq(settlements.id, id));
+    if (!current || (user.role !== "admin" && current.ownerId !== user.id)) {
+      return Response.json({ error: "No autorizado" }, { status: 403 });
+    }
 
     await db
       .update(settlements)
@@ -18,6 +26,8 @@ export async function PUT(request: Request, context: RouteContext) {
         employee: String(payload.employee || "").trim(),
         department: String(payload.department || ""),
         fundCode: String(payload.fundCode || ""),
+        fundType: String(payload.fundType || "caja menor"),
+        projectName: String(payload.projectName || ""),
         depositDate: String(payload.depositDate || ""),
         depositReference: String(payload.depositReference || ""),
         depositSource: String(payload.depositSource || ""),
@@ -59,9 +69,16 @@ export async function PUT(request: Request, context: RouteContext) {
 }
 
 export async function DELETE(_request: Request, context: RouteContext) {
+  const { user, response } = await requireUser(_request);
+  if (response) return response;
+
   try {
     const { id } = await context.params;
     const db = getDb();
+    const [current] = await db.select().from(settlements).where(eq(settlements.id, id));
+    if (!current || (user.role !== "admin" && current.ownerId !== user.id)) {
+      return Response.json({ error: "No autorizado" }, { status: 403 });
+    }
     const evidenceRows = await db.select().from(evidences).where(eq(evidences.settlementId, id));
     if (env.EVIDENCES) {
       await Promise.all(evidenceRows.map((evidence) => env.EVIDENCES.delete(evidence.r2Key)));

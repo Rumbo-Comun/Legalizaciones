@@ -1,6 +1,7 @@
 import { desc, eq } from "drizzle-orm";
 import { getDb } from "../../../db";
-import { evidences, expenses, settlements } from "../../../db/schema";
+import { evidences, expenses, reviewComments, settlementAccess, settlements, users } from "../../../db/schema";
+import { requireUser } from "../../auth";
 
 type ExpensePayload = typeof expenses.$inferInsert;
 type SettlementPayload = typeof settlements.$inferInsert & {
@@ -14,7 +15,31 @@ async function hydrateSettlement(id: string) {
 
   const expenseRows = await db.select().from(expenses).where(eq(expenses.settlementId, id));
   const evidenceRows = await db.select().from(evidences).where(eq(evidences.settlementId, id));
-  return { ...settlement, expenses: expenseRows, evidences: evidenceRows };
+  const accessRows = await db
+    .select({
+      id: settlementAccess.id,
+      userId: settlementAccess.userId,
+      permission: settlementAccess.permission,
+      name: users.name,
+      email: users.email,
+      role: users.role,
+    })
+    .from(settlementAccess)
+    .innerJoin(users, eq(settlementAccess.userId, users.id))
+    .where(eq(settlementAccess.settlementId, id));
+  const commentRows = await db
+    .select({
+      id: reviewComments.id,
+      settlementId: reviewComments.settlementId,
+      userId: reviewComments.userId,
+      comment: reviewComments.comment,
+      createdAt: reviewComments.createdAt,
+      userName: users.name,
+    })
+    .from(reviewComments)
+    .innerJoin(users, eq(reviewComments.userId, users.id))
+    .where(eq(reviewComments.settlementId, id));
+  return { ...settlement, expenses: expenseRows, evidences: evidenceRows, access: accessRows, comments: commentRows };
 }
 
 function cleanCurrency(value: unknown) {
@@ -36,21 +61,51 @@ function cleanExpense(expense: Partial<ExpensePayload>, settlementId: string): E
   };
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  const { user, response } = await requireUser(request);
+  if (response) return response;
+
   try {
     const db = getDb();
-    const rows = await db
-      .select()
-      .from(settlements)
-      .orderBy(desc(settlements.updatedAt), desc(settlements.createdAt));
+    let rows = await db.select().from(settlements).orderBy(desc(settlements.updatedAt), desc(settlements.createdAt));
+    if (user.role !== "admin") {
+      const allowed = await db.select().from(settlementAccess).where(eq(settlementAccess.userId, user.id));
+      const settlementIds = allowed.map((row) => row.settlementId);
+      rows = rows.filter((row) => row.ownerId === user.id || settlementIds.includes(row.id));
+    }
     const expenseRows = await db.select().from(expenses);
     const evidenceRows = await db.select().from(evidences);
+    const accessRows = await db
+      .select({
+        id: settlementAccess.id,
+        settlementId: settlementAccess.settlementId,
+        userId: settlementAccess.userId,
+        permission: settlementAccess.permission,
+        name: users.name,
+        email: users.email,
+        role: users.role,
+      })
+      .from(settlementAccess)
+      .innerJoin(users, eq(settlementAccess.userId, users.id));
+    const commentRows = await db
+      .select({
+        id: reviewComments.id,
+        settlementId: reviewComments.settlementId,
+        userId: reviewComments.userId,
+        comment: reviewComments.comment,
+        createdAt: reviewComments.createdAt,
+        userName: users.name,
+      })
+      .from(reviewComments)
+      .innerJoin(users, eq(reviewComments.userId, users.id));
 
     return Response.json({
       settlements: rows.map((settlement) => ({
         ...settlement,
         expenses: expenseRows.filter((expense) => expense.settlementId === settlement.id),
         evidences: evidenceRows.filter((evidence) => evidence.settlementId === settlement.id),
+        access: accessRows.filter((access) => access.settlementId === settlement.id),
+        comments: commentRows.filter((comment) => comment.settlementId === settlement.id),
       })),
     });
   } catch (error) {
@@ -59,6 +114,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const { user, response } = await requireUser(request);
+  if (response) return response;
+
   try {
     const payload = (await request.json()) as SettlementPayload;
     const id = String(payload.id || crypto.randomUUID());
@@ -70,12 +128,15 @@ export async function POST(request: Request) {
       employee: String(payload.employee || "").trim(),
       department: String(payload.department || ""),
       fundCode: String(payload.fundCode || ""),
+      fundType: String(payload.fundType || "caja menor"),
+      projectName: String(payload.projectName || ""),
       depositDate: String(payload.depositDate || ""),
       depositReference: String(payload.depositReference || ""),
       depositSource: String(payload.depositSource || ""),
       periodStart: String(payload.periodStart || ""),
       periodEnd: String(payload.periodEnd || ""),
       status: String(payload.status || "borrador"),
+      ownerId: user.id,
       advanceCents: cleanCurrency(payload.advanceCents),
       cashReturnedCents: cleanCurrency(payload.cashReturnedCents),
       notes: String(payload.notes || ""),

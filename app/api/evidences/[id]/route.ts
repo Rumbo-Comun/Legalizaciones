@@ -1,15 +1,60 @@
 import { eq } from "drizzle-orm";
 import { env } from "cloudflare:workers";
 import { getDb } from "../../../../db";
-import { evidences } from "../../../../db/schema";
+import { evidences, settlementAccess, settlements } from "../../../../db/schema";
+import { requireUser } from "../../../auth";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
-export async function DELETE(_request: Request, context: RouteContext) {
+export async function GET(_request: Request, context: RouteContext) {
+  const { user, response } = await requireUser(_request);
+  if (response) return response;
+
   try {
     const { id } = await context.params;
     const db = getDb();
     const [evidence] = await db.select().from(evidences).where(eq(evidences.id, id));
+    if (!evidence || !env.EVIDENCES) {
+      return Response.json({ error: "Evidencia no encontrada" }, { status: 404 });
+    }
+    const [settlement] = await db.select().from(settlements).where(eq(settlements.id, evidence.settlementId));
+    const access = await db.select().from(settlementAccess).where(eq(settlementAccess.settlementId, evidence.settlementId));
+    const allowed =
+      user.role === "admin" || settlement?.ownerId === user.id || access.some((row) => row.userId === user.id);
+    if (!allowed) {
+      return Response.json({ error: "No autorizado" }, { status: 403 });
+    }
+
+    const object = await env.EVIDENCES.get(evidence.r2Key);
+    if (!object) {
+      return Response.json({ error: "Archivo no encontrado" }, { status: 404 });
+    }
+
+    return new Response(object.body, {
+      headers: {
+        "Content-Type": evidence.contentType,
+        "Content-Disposition": `inline; filename="${evidence.fileName.replaceAll('"', "")}"`,
+      },
+    });
+  } catch (error) {
+    return Response.json({ error: error instanceof Error ? error.message : "Error leyendo evidencia" }, { status: 500 });
+  }
+}
+
+export async function DELETE(_request: Request, context: RouteContext) {
+  const { user, response } = await requireUser(_request);
+  if (response) return response;
+
+  try {
+    const { id } = await context.params;
+    const db = getDb();
+    const [evidence] = await db.select().from(evidences).where(eq(evidences.id, id));
+    if (evidence) {
+      const [settlement] = await db.select().from(settlements).where(eq(settlements.id, evidence.settlementId));
+      if (user.role !== "admin" && settlement?.ownerId !== user.id) {
+        return Response.json({ error: "No autorizado" }, { status: 403 });
+      }
+    }
     if (evidence && env.EVIDENCES) {
       await env.EVIDENCES.delete(evidence.r2Key);
     }
