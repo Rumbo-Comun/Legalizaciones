@@ -68,6 +68,8 @@ Opcion recomendada:
 
 Ese volumen conserva la base local de D1/Miniflare y soportes R2 simulados cuando se ejecuta en contenedor.
 
+El contenedor arranca con `npm run start`, que ejecuta Wrangler local contra el build generado. Por eso Coolify debe usar el `Dockerfile` del repositorio y no un build pack de Node/Nixpacks.
+
 ## Comandos
 
 ```bash
