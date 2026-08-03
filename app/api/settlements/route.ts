@@ -2,6 +2,7 @@ import { desc, eq } from "drizzle-orm";
 import { getDb } from "../../../db";
 import { evidences, expenses, reviewComments, settlementAccess, settlements, users } from "../../../db/schema";
 import { requireUser } from "../../auth";
+import { notifyApprovalRequest } from "../../notifications";
 
 type ExpensePayload = typeof expenses.$inferInsert;
 type SettlementPayload = typeof settlements.$inferInsert & {
@@ -59,6 +60,27 @@ function cleanExpense(expense: Partial<ExpensePayload>, settlementId: string): E
     taxCents: cleanCurrency(expense.taxCents),
     paymentMethod: String(expense.paymentMethod || "Efectivo"),
   };
+}
+
+async function assignReviewers(settlementId: string) {
+  const db = getDb();
+  const reviewerRows = await db.select().from(users).where(eq(users.role, "revisor"));
+  const current = await db.select().from(settlementAccess).where(eq(settlementAccess.settlementId, settlementId));
+  const currentIds = new Set(current.map((row) => row.userId));
+  for (const reviewer of reviewerRows) {
+    if (currentIds.has(reviewer.id)) continue;
+    await db.insert(settlementAccess).values({
+      id: crypto.randomUUID(),
+      settlementId,
+      userId: reviewer.id,
+      permission: "aprobar",
+    });
+  }
+  return reviewerRows.map((reviewer) => ({
+    id: reviewer.id,
+    name: reviewer.name,
+    email: reviewer.email,
+  }));
 }
 
 export async function GET(request: Request) {
@@ -146,6 +168,11 @@ export async function POST(request: Request) {
 
     const expenseRows = (payload.expenses ?? []).map((expense) => cleanExpense(expense, id));
     if (expenseRows.length) await db.insert(expenses).values(expenseRows);
+    if (String(payload.status || "").includes("aprobacion")) {
+      const reviewerRows = await assignReviewers(id);
+      const [settlement] = await db.select().from(settlements).where(eq(settlements.id, id));
+      if (settlement) await notifyApprovalRequest(settlement, reviewerRows, user);
+    }
 
     return Response.json({ settlement: await hydrateSettlement(id) }, { status: 201 });
   } catch (error) {
@@ -153,4 +180,4 @@ export async function POST(request: Request) {
   }
 }
 
-export { hydrateSettlement, cleanCurrency, cleanExpense };
+export { hydrateSettlement, cleanCurrency, cleanExpense, assignReviewers };

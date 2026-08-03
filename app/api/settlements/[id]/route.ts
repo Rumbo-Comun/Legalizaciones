@@ -1,9 +1,10 @@
 import { eq } from "drizzle-orm";
 import { env } from "cloudflare:workers";
 import { getDb } from "../../../../db";
-import { evidences, expenses, settlements } from "../../../../db/schema";
-import { cleanCurrency, cleanExpense, hydrateSettlement } from "../route";
+import { evidences, expenses, settlementAccess, settlements } from "../../../../db/schema";
+import { assignReviewers, cleanCurrency, cleanExpense, hydrateSettlement } from "../route";
 import { requireUser } from "../../../auth";
+import { notifyApprovalRequest } from "../../../notifications";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -16,7 +17,9 @@ export async function PUT(request: Request, context: RouteContext) {
     const payload = await request.json();
     const db = getDb();
     const [current] = await db.select().from(settlements).where(eq(settlements.id, id));
-    if (!current || (user.role !== "admin" && current.ownerId !== user.id)) {
+    const access = await db.select().from(settlementAccess).where(eq(settlementAccess.settlementId, id));
+    const canReview = user.role === "revisor" && access.some((row) => row.userId === user.id);
+    if (!current || (user.role !== "admin" && current.ownerId !== user.id && !canReview)) {
       return Response.json({ error: "No autorizado" }, { status: 403 });
     }
 
@@ -40,6 +43,14 @@ export async function PUT(request: Request, context: RouteContext) {
         updatedAt: new Date().toISOString(),
       })
       .where(eq(settlements.id, id));
+    const nextStatus = String(payload.status || "borrador");
+    if (nextStatus.includes("aprobacion")) {
+      const reviewerRows = await assignReviewers(id);
+      if (current.status !== nextStatus) {
+        const [settlement] = await db.select().from(settlements).where(eq(settlements.id, id));
+        if (settlement) await notifyApprovalRequest(settlement, reviewerRows, user);
+      }
+    }
 
     const currentExpenses = await db.select().from(expenses).where(eq(expenses.settlementId, id));
     const expenseRows = (payload.expenses ?? []).map((expense: unknown) =>

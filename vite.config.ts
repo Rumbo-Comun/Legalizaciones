@@ -31,6 +31,11 @@ const localBindingConfig = {
         },
       ]
     : [],
+  vars: {
+    RESEND_API_KEY: process.env.RESEND_API_KEY,
+    MAIL_FROM: process.env.MAIL_FROM,
+    APP_BASE_URL: process.env.APP_BASE_URL,
+  },
 };
 
 export default defineConfig(async () => {

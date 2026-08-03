@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { env } from "cloudflare:workers";
 import { getDb } from "../../../db";
-import { evidences, settlements } from "../../../db/schema";
+import { evidences, settlementAccess, settlements } from "../../../db/schema";
 import { hydrateSettlement } from "../settlements/route";
 import { requireUser } from "../../auth";
 
@@ -28,7 +28,9 @@ export async function POST(request: Request) {
     if (!settlement) {
       return Response.json({ error: "Guarda la legalizacion antes de cargar evidencias." }, { status: 404 });
     }
-    if (user.role !== "admin" && settlement.ownerId !== user.id) {
+    const access = await db.select().from(settlementAccess).where(eq(settlementAccess.settlementId, settlementId));
+    const canAttach = access.some((row) => row.userId === user.id);
+    if (user.role !== "admin" && settlement.ownerId !== user.id && !canAttach) {
       return Response.json({ error: "No autorizado" }, { status: 403 });
     }
 

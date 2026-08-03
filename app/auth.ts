@@ -40,29 +40,28 @@ async function makePassword(password: string) {
 
 export async function ensureDefaultUsers() {
   const db = getDb();
-  const existing = await db.select().from(users).limit(1);
-  if (existing.length) return;
+  const defaults = [
+    ["Administrador", "admin@local", "admin", "admin123"],
+    ["ANDRES SALAS", "proyectos@uscom.net.co", "solicitante", "andres123"],
+    ["WILLIAM", "william@local", "solicitante", "william123"],
+    ["FELIPE", "felipe@local", "solicitante", "felipe123"],
+    ["OTTO URREA", "otto.urrea@uscom.net.co", "revisor", "otto123"],
+  ] as const;
 
-  const admin = await makePassword("admin123");
-  const reviewer = await makePassword("otto123");
-  await db.insert(users).values([
-    {
+  for (const [name, email, role, password] of defaults) {
+    const [existing] = await db.select().from(users).where(eq(users.email, email));
+    const [existingName] = await db.select().from(users).where(eq(users.name, name));
+    if (existing || existingName) continue;
+    const passwordInfo = await makePassword(password);
+    await db.insert(users).values({
       id: crypto.randomUUID(),
-      name: "Administrador",
-      email: "admin@local",
-      role: "admin",
-      passwordHash: admin.hash,
-      passwordSalt: admin.salt,
-    },
-    {
-      id: crypto.randomUUID(),
-      name: "OTTO URREA",
-      email: "otto.urrea@local",
-      role: "revisor",
-      passwordHash: reviewer.hash,
-      passwordSalt: reviewer.salt,
-    },
-  ]);
+      name,
+      email,
+      role,
+      passwordHash: passwordInfo.hash,
+      passwordSalt: passwordInfo.salt,
+    });
+  }
 }
 
 export async function getSessionUser(request: Request): Promise<AuthUser | null> {

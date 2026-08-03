@@ -1,98 +1,78 @@
-# vinext-starter
+# Legalizaciones USCOM
 
-A clean full-stack starter running on
-[vinext](https://github.com/cloudflare/vinext), with optional Cloudflare D1 and
-Drizzle support.
+Aplicacion web para solicitudes de consignacion, aprobacion, control de fondos, registro de gastos, soportes, observaciones e informes PDF.
 
-## Prerequisites
+## Flujo
 
-- Node.js `>=22.13.0`
+- Solicitantes: Andres, William y Felipe crean solicitudes.
+- Revisor/aprobador: OTTO recibe la solicitud, aprueba la consignacion y puede cargar soporte.
+- Luego de consignado se habilita el registro de gastos.
+- La app permite pedir ampliacion cuando el fondo se esta agotando.
+- Solo admin administra usuarios.
 
-## Quick Start
+## Desarrollo local
 
 ```bash
 npm install
-npm run dev
+npm run dev -- -p 3020 -H 127.0.0.1
+```
+
+Abrir:
+
+```text
+http://127.0.0.1:3020
+```
+
+Usuarios locales:
+
+```text
+proyectos@uscom.net.co / andres123
+william@local / william123
+felipe@local / felipe123
+otto.urrea@uscom.net.co / otto123
+admin@local / admin123
+```
+
+## Variables de entorno
+
+Copiar `.env.example` y configurar en Coolify:
+
+```env
+APP_BASE_URL=https://tu-url-de-coolify
+MAIL_FROM=Legalizaciones USCOM <proyectos@uscom.net.co>
+RESEND_API_KEY=tu_api_key_de_resend
+```
+
+Para pruebas con Resend sin dominio verificado, usar:
+
+```env
+MAIL_FROM=Legalizaciones USCOM <onboarding@resend.dev>
+```
+
+Para enviar a `otto.urrea@uscom.net.co`, Resend exige verificar el dominio `uscom.net.co`.
+
+## Coolify
+
+Opcion recomendada:
+
+1. Subir este repositorio a Git.
+2. Crear una app en Coolify desde el repositorio.
+3. Elegir build con `Dockerfile`.
+4. Configurar las variables de entorno.
+5. Definir puerto interno `3000`.
+6. Agregar volumen persistente para:
+
+```text
+/app/.wrangler
+```
+
+Ese volumen conserva la base local de D1/Miniflare y soportes R2 simulados cuando se ejecuta en contenedor.
+
+## Comandos
+
+```bash
 npm run build
+npm run start
 ```
 
-This starter does not use `wrangler.jsonc`.
-
-## Included Shape
-
-- edit site code under `app/`
-- `.openai/hosting.json` declares optional Sites D1 and R2 bindings
-- `vite.config.ts` simulates declared bindings for local development
-- `db/schema.ts` starts intentionally empty
-- `examples/d1/` contains an optional D1 example surface
-- `drizzle.config.ts` supports local migration generation when needed
-
-## Workspace Auth Headers
-
-OpenAI workspace sites can read the current user's email from
-`oai-authenticated-user-email`.
-
-SIWC-authenticated workspace sites may also receive
-`oai-authenticated-user-full-name` when the user's SIWC profile has a non-empty
-`name` claim. The full-name value is percent-encoded UTF-8 and is accompanied by
-`oai-authenticated-user-full-name-encoding: percent-encoded-utf-8`.
-
-Treat the full name as optional and fall back to email when it is absent:
-
-```tsx
-import { headers } from "next/headers";
-
-export default async function Home() {
-  const requestHeaders = await headers();
-  const email = requestHeaders.get("oai-authenticated-user-email");
-  const encodedFullName = requestHeaders.get("oai-authenticated-user-full-name");
-  const fullName =
-    encodedFullName &&
-    requestHeaders.get("oai-authenticated-user-full-name-encoding") ===
-      "percent-encoded-utf-8"
-      ? decodeURIComponent(encodedFullName)
-      : null;
-
-  const displayName = fullName ?? email;
-  // ...
-}
-```
-
-## Optional Dispatch-Owned ChatGPT Sign-In
-
-Import the ready-to-use helpers from `app/chatgpt-auth.ts` when the site needs
-optional or required ChatGPT sign-in:
-
-- Use `getChatGPTUser()` for optional signed-in UI.
-- Use `requireChatGPTUser(returnTo)` for server-rendered pages that should send
-  anonymous visitors through Sign in with ChatGPT.
-- Use `chatGPTSignInPath(returnTo)` and `chatGPTSignOutPath(returnTo)` for
-  browser links or actions.
-- Pass a same-origin relative `returnTo` path for the destination after sign-in
-  or sign-out. The helper validates and safely encodes it.
-- Mark protected pages with `export const dynamic = "force-dynamic"` because
-  they depend on per-request identity headers.
-
-Dispatch owns `/signin-with-chatgpt`, `/signout-with-chatgpt`, `/callback`, the
-OAuth cookies, and identity header injection. Do not implement app routes for
-those reserved paths. Routes that do not import and call the helper remain
-anonymous-compatible.
-
-SIWC establishes identity only; it does not prove workspace membership. Use the
-Sites hosting platform's access policy controls for workspace-wide restrictions,
-or enforce explicit server-side membership or allowlist checks.
-
-Use SIWC for account pages, user-specific dashboards, saved records, and write
-actions tied to the current ChatGPT user. Leave public content anonymous.
-
-## Useful Commands
-
-- `npm run dev`: start local development
-- `npm run build`: verify the vinext build output
-- `npm test`: build the starter and verify its rendered loading skeleton
-- `npm run db:generate`: generate Drizzle migrations after schema changes
-
-## Learn More
-
-- [vinext Documentation](https://github.com/cloudflare/vinext)
-- [Drizzle D1 Guide](https://orm.drizzle.team/docs/get-started/d1-new)
+`npm run start` respeta la variable `PORT` que asigna Coolify.

@@ -96,9 +96,9 @@ const emptySettlement = (): Settlement => ({
   depositDate: new Date().toISOString().slice(0, 10),
   depositReference: "",
   depositSource: "",
-  periodStart: new Date().toISOString().slice(0, 10),
-  periodEnd: new Date().toISOString().slice(0, 10),
-  status: "consignacion creada",
+  periodStart: "",
+  periodEnd: "",
+  status: "borrador",
   advanceCents: 0,
   cashReturnedCents: 0,
   notes: "",
@@ -124,17 +124,20 @@ function formatMoney(cents: number) {
 export default function Home() {
   const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
-  const [loginEmail, setLoginEmail] = useState("admin@local");
-  const [loginPassword, setLoginPassword] = useState("admin123");
+  const [loginEmail, setLoginEmail] = useState("proyectos@uscom.net.co");
+  const [loginPassword, setLoginPassword] = useState("andres123");
   const [users, setUsers] = useState<AppUser[]>([]);
   const [newUser, setNewUser] = useState({
-    name: "OTTO URREA",
-    email: "otto.urrea@local",
-    role: "revisor",
-    password: "otto123",
+    name: "WILLIAM",
+    email: "william@local",
+    role: "solicitante",
+    password: "william123",
   });
   const [selectedUserId, setSelectedUserId] = useState("");
   const [commentDraft, setCommentDraft] = useState("");
+  const [topUpAmount, setTopUpAmount] = useState("");
+  const [topUpReason, setTopUpReason] = useState("");
+  const [adminOpen, setAdminOpen] = useState(false);
   const [records, setRecords] = useState<Settlement[]>([]);
   const [draft, setDraft] = useState<Settlement>(emptySettlement);
   const [activeId, setActiveId] = useState<string>("");
@@ -152,7 +155,17 @@ export default function Home() {
   }, [draft]);
   const hasConsignation = Boolean(activeId);
   const canEdit = Boolean(currentUser && (currentUser.role === "admin" || draft.ownerId === currentUser.id || !activeId));
+  const canReviewFund = Boolean(
+    currentUser &&
+      (currentUser.role === "admin" ||
+        (currentUser.role === "revisor" && (draft.access ?? []).some((access) => access.userId === currentUser.id))),
+  );
+  const canAttachSupport = canEdit || canReviewFund;
+  const canSave = canEdit || canReviewFund;
   const canAdmin = currentUser?.role === "admin";
+  const expensesEnabled = ["consignado", "registrando gastos", "aprobado", "solicitud ampliacion"].includes(
+    draft.status,
+  );
 
   useEffect(() => {
     void loadMe();
@@ -236,18 +249,19 @@ export default function Home() {
     }));
   }
 
-  async function saveSettlement(event?: FormEvent) {
+  async function saveSettlement(event?: FormEvent, override: Partial<Settlement> = {}) {
     event?.preventDefault();
-    if (!canEdit) {
-      setNotice("Este usuario puede revisar y comentar, pero no editar este fondo.");
+    if (!canSave) {
+      setNotice("Este usuario puede revisar y comentar, pero no guardar cambios.");
       return null;
     }
-    if (!draft.employee.trim()) {
+    const payload = { ...draft, ...override };
+    if (!payload.employee.trim()) {
       setNotice("Ingresa el responsable de la consignacion.");
       return null;
     }
-    if (draft.advanceCents <= 0) {
-      setNotice("Ingresa el valor consignado para abrir el fondo.");
+    if (payload.advanceCents <= 0) {
+      setNotice("Ingresa el valor solicitado para abrir el fondo.");
       return null;
     }
 
@@ -256,7 +270,7 @@ export default function Home() {
     const response = await fetch(url, {
       method,
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(draft),
+      body: JSON.stringify(payload),
     });
     const data = await response.json();
 
@@ -267,7 +281,7 @@ export default function Home() {
 
     setDraft(data.settlement);
     setActiveId(data.settlement.id);
-    setNotice(activeId ? "Movimiento guardado correctamente." : "Consignacion creada. Ya puedes registrar gastos.");
+    setNotice(activeId ? "Movimiento guardado correctamente." : "Solicitud creada.");
     await loadRecords();
     return data.settlement as Settlement;
   }
@@ -276,7 +290,7 @@ export default function Home() {
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file) return;
-    if (!canEdit) {
+    if (!canAttachSupport) {
       setNotice("Este usuario no puede cargar soportes en este fondo.");
       return;
     }
@@ -315,6 +329,40 @@ export default function Home() {
       }));
       await loadRecords();
     }
+  }
+
+  async function submitForApproval() {
+    const saved = await saveSettlement(undefined, { status: "pendiente aprobacion" });
+    if (saved) setNotice("Solicitud enviada a aprobacion. Los revisores autorizados ya pueden verla.");
+  }
+
+  async function approveConsignation() {
+    const saved = await saveSettlement(undefined, { status: "consignado" });
+    if (saved) setNotice("Consignacion aprobada. Ya se pueden registrar gastos.");
+  }
+
+  async function requestMoreFunds() {
+    if (!activeId || !topUpAmount.trim()) {
+      setNotice("Ingresa el valor adicional solicitado.");
+      return;
+    }
+    const amount = parseMoney(topUpAmount);
+    const reason = topUpReason.trim() || "Fondo por agotarse";
+    const response = await fetch(`/api/settlements/${activeId}/comments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        comment: `Solicitud de ampliacion de fondos por ${formatMoney(amount)}. Motivo: ${reason}`,
+      }),
+    });
+    if (!response.ok) {
+      setNotice("No se pudo registrar la solicitud de ampliacion.");
+      return;
+    }
+    await saveSettlement(undefined, { status: "solicitud ampliacion" });
+    setTopUpAmount("");
+    setTopUpReason("");
+    setNotice("Solicitud de ampliacion enviada a revision.");
   }
 
   async function removeRecord(id: string) {
@@ -622,7 +670,7 @@ export default function Home() {
             />
           </label>
           <button className="save" type="submit">Entrar</button>
-          <p className="muted">Local: admin@local / admin123 · otto.urrea@local / otto123</p>
+          <p className="muted">Local: proyectos@uscom.net.co / andres123 · otto.urrea@uscom.net.co / otto123 · admin@local / admin123</p>
           {notice && <p className="notice">{notice}</p>}
         </form>
       </main>
@@ -635,7 +683,7 @@ export default function Home() {
         <div className="topbar">
           <div>
             <p className="eyebrow">Fondos operativos</p>
-            <h1>Consignaciones y gastos</h1>
+            <h1>Solicitudes y legalizaciones</h1>
           </div>
           <div className="actions">
             <span className="user-pill">{currentUser.name} · {currentUser.role}</span>
@@ -661,7 +709,7 @@ export default function Home() {
         </div>
 
         <div className="summary-grid">
-          <Metric label="Consignado" value={formatMoney(draft.advanceCents)} />
+          <Metric label="Solicitado / consignado" value={formatMoney(draft.advanceCents)} />
           <Metric label="Gastado" value={formatMoney(totals.spent)} />
           <Metric label="Devuelto" value={formatMoney(draft.cashReturnedCents)} />
           <Metric
@@ -671,18 +719,51 @@ export default function Home() {
           />
         </div>
 
+        <section className="workflow-panel">
+          <div className={`workflow-step ${draft.status === "borrador" ? "active" : ""}`}>
+            <strong>1</strong>
+            <span>Solicitud</span>
+          </div>
+          <div className={`workflow-step ${draft.status === "pendiente aprobacion" ? "active" : ""}`}>
+            <strong>2</strong>
+            <span>Aprobacion OTTO</span>
+          </div>
+          <div className={`workflow-step ${["consignado", "registrando gastos", "aprobado"].includes(draft.status) ? "active" : ""}`}>
+            <strong>3</strong>
+            <span>Consignado</span>
+          </div>
+          <div className={`workflow-step ${draft.status === "solicitud ampliacion" ? "active" : ""}`}>
+            <strong>4</strong>
+            <span>Ampliacion</span>
+          </div>
+          <div className="workflow-actions">
+            <button type="button" className="ghost" disabled={!canEdit} onClick={() => void saveSettlement()}>
+              Guardar borrador
+            </button>
+            <button type="button" className="save compact" disabled={!canEdit} onClick={submitForApproval}>
+              Enviar a aprobacion
+            </button>
+            <button type="button" className="pdf-button compact" disabled={!canReviewFund || !activeId} onClick={approveConsignation}>
+              Aprobar consignacion
+            </button>
+          </div>
+        </section>
+
         <form className="editor" onSubmit={saveSettlement}>
           <section className="panel details-panel">
             <div className="section-title">
-              <h2>1. Crear fondo y consignacion</h2>
+              <h2>1. Solicitud de consignacion</h2>
               <select
                 value={draft.status}
-                disabled={!canEdit}
+                disabled={!canSave}
                 onChange={(event) => updateDraft("status", event.target.value)}
                 aria-label="Estado"
               >
-                <option value="consignacion creada">Consignacion creada</option>
+                <option value="borrador">Borrador</option>
+                <option value="pendiente aprobacion">Pendiente aprobacion</option>
+                <option value="consignado">Consignado</option>
                 <option value="registrando gastos">Registrando gastos</option>
+                <option value="solicitud ampliacion">Solicitud ampliacion</option>
                 <option value="en revision">En revision</option>
                 <option value="aprobado">Aprobado</option>
                 <option value="rechazado">Rechazado</option>
@@ -707,7 +788,7 @@ export default function Home() {
                 Proyecto / objeto
                 <input
                   value={draft.projectName}
-                  readOnly={!canEdit}
+                  readOnly={!canSave}
                   onChange={(event) => updateDraft("projectName", event.target.value)}
                   placeholder="Nombre del proyecto o viaje"
                 />
@@ -740,10 +821,10 @@ export default function Home() {
                 />
               </label>
               <label>
-                Valor consignado
+                Valor solicitado / consignado
                 <input
                   inputMode="numeric"
-                  readOnly={!canEdit}
+                  readOnly={!canSave}
                   value={draft.advanceCents ? draft.advanceCents / 100 : ""}
                   onChange={(event) => updateDraft("advanceCents", parseMoney(event.target.value))}
                   placeholder="0"
@@ -753,7 +834,7 @@ export default function Home() {
                 Fecha consignacion
                 <input
                   type="date"
-                  readOnly={!canEdit}
+                  readOnly={!canSave}
                   value={draft.depositDate}
                   onChange={(event) => updateDraft("depositDate", event.target.value)}
                 />
@@ -762,13 +843,13 @@ export default function Home() {
                 Referencia
                 <input
                   value={draft.depositReference}
-                  readOnly={!canEdit}
+                  readOnly={!canSave}
                   onChange={(event) => updateDraft("depositReference", event.target.value)}
                   placeholder="Comprobante o recibo"
                 />
               </label>
               <label>
-                Origen
+                Origen / cuenta
                 <input
                   value={draft.depositSource}
                   readOnly={!canEdit}
@@ -777,7 +858,7 @@ export default function Home() {
                 />
               </label>
               <label>
-                Desde
+                Desde opcional
                 <input
                   type="date"
                   readOnly={!canEdit}
@@ -786,7 +867,7 @@ export default function Home() {
                 />
               </label>
               <label>
-                Hasta
+                Hasta opcional
                 <input
                   type="date"
                   readOnly={!canEdit}
@@ -813,7 +894,7 @@ export default function Home() {
               <button
                 type="button"
                 className="ghost"
-                disabled={!hasConsignation || !canEdit}
+                disabled={!hasConsignation || !expensesEnabled || !canEdit}
                 onClick={() =>
                   setDraft((current) => ({
                     ...current,
@@ -832,10 +913,15 @@ export default function Home() {
             <div className="expense-list">
               {!hasConsignation && (
                 <div className="empty-state">
-                  Guarda primero el fondo con su consignacion para activar el registro de gastos.
+                  Crea la solicitud y enviala a aprobacion. Los gastos se habilitan cuando OTTO marque la consignacion.
                 </div>
               )}
-              {hasConsignation && draft.expenses.length === 0 && (
+              {hasConsignation && !expensesEnabled && (
+                <div className="empty-state">
+                  Solicitud en aprobacion. Esperando consignacion para registrar gastos.
+                </div>
+              )}
+              {hasConsignation && expensesEnabled && draft.expenses.length === 0 && (
                 <div className="empty-state">
                   Aun no hay gastos. Agrega el primero para empezar a restar saldo.
                 </div>
@@ -991,8 +1077,8 @@ export default function Home() {
             <div className="section-title">
               <h2>Saldo del fondo</h2>
               <label className="upload">
-                {uploading === "general" ? "Subiendo..." : "Soporte general"}
-                <input type="file" accept="image/*,.pdf" disabled={!canEdit} onChange={(event) => uploadEvidence(event, null)} />
+                {uploading === "general" ? "Subiendo..." : "Soporte consignacion"}
+                <input type="file" accept="image/*,.pdf" disabled={!canAttachSupport} onChange={(event) => uploadEvidence(event, null)} />
               </label>
             </div>
             <div className="calc-list">
@@ -1020,8 +1106,8 @@ export default function Home() {
               </strong>
             </div>
 
-            <button type="submit" className="save" disabled={!canEdit}>
-              {hasConsignation ? "Guardar gastos" : "Crear consignacion"}
+            <button type="submit" className="save" disabled={!canSave}>
+              {hasConsignation ? "Guardar cambios" : "Crear solicitud"}
             </button>
             <button
               type="button"
@@ -1032,6 +1118,20 @@ export default function Home() {
               {pdfBusy ? "Generando PDF..." : "Descargar informe PDF"}
             </button>
             {notice && <p className="notice">{notice}</p>}
+            {hasConsignation && expensesEnabled && (
+              <div className="topup-box">
+                <h3>Fondo por acabar</h3>
+                <label>
+                  Valor adicional
+                  <input value={topUpAmount} onChange={(event) => setTopUpAmount(event.target.value)} placeholder="0" />
+                </label>
+                <label>
+                  Motivo
+                  <textarea value={topUpReason} onChange={(event) => setTopUpReason(event.target.value)} placeholder="Ej. quedan pocos recursos para terminar el proyecto" />
+                </label>
+                <button type="button" className="ghost" disabled={!canEdit} onClick={requestMoreFunds}>Solicitar mas fondos</button>
+              </div>
+            )}
           </section>
         </form>
 
@@ -1085,32 +1185,35 @@ export default function Home() {
 
         {canAdmin && (
           <section className="panel user-admin">
-            <div className="section-title">
-              <h2>Usuarios autorizados</h2>
-              <span>{users.length}</span>
-            </div>
-            <form className="user-form" onSubmit={saveUser}>
-              <label>
-                Nombre
-                <input value={newUser.name} onChange={(event) => setNewUser({ ...newUser, name: event.target.value })} />
-              </label>
-              <label>
-                Correo / usuario
-                <input value={newUser.email} onChange={(event) => setNewUser({ ...newUser, email: event.target.value })} />
-              </label>
-              <label>
-                Rol
-                <select value={newUser.role} onChange={(event) => setNewUser({ ...newUser, role: event.target.value })}>
-                  <option value="revisor">Revisor</option>
-                  <option value="admin">Admin</option>
-                </select>
-              </label>
-              <label>
-                Clave temporal
-                <input value={newUser.password} onChange={(event) => setNewUser({ ...newUser, password: event.target.value })} />
-              </label>
-              <button className="save" type="submit">Guardar usuario</button>
-            </form>
+            <button type="button" className="admin-toggle" onClick={() => setAdminOpen((open) => !open)}>
+              <span>Administracion de usuarios</span>
+              <strong>{users.length}</strong>
+            </button>
+            {adminOpen && (
+              <form className="user-form" onSubmit={saveUser}>
+                <label>
+                  Nombre
+                  <input value={newUser.name} onChange={(event) => setNewUser({ ...newUser, name: event.target.value })} />
+                </label>
+                <label>
+                  Correo / usuario
+                  <input value={newUser.email} onChange={(event) => setNewUser({ ...newUser, email: event.target.value })} />
+                </label>
+                <label>
+                  Rol
+                  <select value={newUser.role} onChange={(event) => setNewUser({ ...newUser, role: event.target.value })}>
+                    <option value="solicitante">Solicitante</option>
+                    <option value="revisor">Revisor / aprobador</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </label>
+                <label>
+                  Clave temporal
+                  <input value={newUser.password} onChange={(event) => setNewUser({ ...newUser, password: event.target.value })} />
+                </label>
+                <button className="save" type="submit">Guardar usuario</button>
+              </form>
+            )}
           </section>
         )}
       </section>
