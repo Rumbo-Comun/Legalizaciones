@@ -24,6 +24,20 @@ function formatCop(cents: number) {
   }).format(Math.round(cents / 100));
 }
 
+function cleanMailName(value: string) {
+  return value.replace(/[<>"\r\n]/g, "").trim();
+}
+
+function hasDeliverableEmail(email?: string) {
+  return Boolean(email && email.includes("@") && !email.endsWith("@local"));
+}
+
+function requesterFrom(requester?: Reviewer) {
+  if (!hasDeliverableEmail(requester?.email)) return null;
+  const name = cleanMailName(requester?.name || "Legalizaciones USCOM");
+  return `${name} <${requester!.email}>`;
+}
+
 async function logNotification(settlementId: string, message: string) {
   const db = getDb();
   const [admin] = await db.select().from(users).where(eq(users.role, "admin"));
@@ -50,7 +64,7 @@ export async function notifyApprovalRequest(settlement: SettlementForMail, revie
   }
 
   const apiKey = getRuntimeValue("RESEND_API_KEY");
-  const from = getRuntimeValue("MAIL_FROM") || "Legalizaciones USCOM <noreply@uscom.net.co>";
+  const from = requesterFrom(requester) || getRuntimeValue("MAIL_FROM") || "Legalizaciones USCOM <noreply@uscom.net.co>";
   const baseUrl = getRuntimeValue("APP_BASE_URL") || fallbackBaseUrl;
 
   if (!apiKey) {
@@ -85,7 +99,7 @@ export async function notifyApprovalRequest(settlement: SettlementForMail, revie
     body: JSON.stringify({
       from,
       to: recipients,
-      reply_to: requester?.email && !requester.email.endsWith("@local") ? requester.email : undefined,
+      reply_to: hasDeliverableEmail(requester?.email) ? requester?.email : undefined,
       subject,
       html,
     }),
@@ -100,5 +114,5 @@ export async function notifyApprovalRequest(settlement: SettlementForMail, revie
     return;
   }
 
-  await logNotification(settlement.id, `Correo de aprobacion enviado a ${recipients.join(", ")}.`);
+  await logNotification(settlement.id, `Correo de aprobacion enviado a ${recipients.join(", ")} desde ${from}.`);
 }
