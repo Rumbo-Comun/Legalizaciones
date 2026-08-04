@@ -79,7 +79,7 @@ async function logNotification(settlementId: string, message: string) {
     id: crypto.randomUUID(),
     settlementId,
     userId: admin.id,
-    comment: message,
+    comment: `[LOG] ${message}`,
   });
 }
 

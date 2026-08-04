@@ -138,6 +138,20 @@ function formatDateTime(value: string) {
   }).format(date);
 }
 
+function isSystemLog(comment: ReviewComment) {
+  return (
+    comment.comment.startsWith("[LOG]") ||
+    (comment.userName === "Administrador" &&
+      (comment.comment.startsWith("Correo de aprobacion") ||
+        comment.comment.startsWith("No se pudo enviar correo") ||
+        comment.comment.startsWith("Notificacion de correo")))
+  );
+}
+
+function cleanLogMessage(value: string) {
+  return value.replace(/^\[LOG\]\s*/, "");
+}
+
 export default function Home() {
   const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
@@ -892,21 +906,7 @@ export default function Home() {
           <section className="panel details-panel">
             <div className="section-title">
               <h2>1. Solicitud de consignacion</h2>
-              <select
-                value={draft.status}
-                disabled={!canSave}
-                onChange={(event) => updateDraft("status", event.target.value)}
-                aria-label="Estado"
-              >
-                <option value="borrador">Borrador</option>
-                <option value="pendiente aprobacion">Pendiente aprobacion</option>
-                <option value="consignado">Consignado</option>
-                <option value="registrando gastos">Registrando gastos</option>
-                <option value="solicitud ampliacion">Solicitud ampliacion</option>
-                <option value="en revision">En revision</option>
-                <option value="aprobado">Aprobado</option>
-                <option value="rechazado">Rechazado</option>
-              </select>
+              <span className={`request-status ${draft.status.replaceAll(" ", "-")}`}>{draft.status}</span>
             </div>
 
             <div className="form-grid">
@@ -1301,23 +1301,40 @@ export default function Home() {
                 <span key={access.id}>{access.name} · {access.permission}</span>
               ))}
             </div>
-            <label className="full">
-              Observacion
+            <label className="full novelty-box">
+              Novedad
               <textarea
                 value={commentDraft}
                 onChange={(event) => setCommentDraft(event.target.value)}
-                placeholder="Escribe una observacion de revision"
+                placeholder="Registra una novedad, observacion o comentario de revision"
               />
             </label>
-            <button type="button" className="pdf-button" onClick={addComment}>Agregar observacion</button>
+            <button type="button" className="pdf-button novelty-action" onClick={addComment}>Registrar novedad</button>
             <div className="comment-list">
-              {(draft.comments ?? []).map((comment) => (
+              {(draft.comments ?? []).filter((comment) => !isSystemLog(comment)).map((comment) => (
                 <article key={comment.id}>
                   <strong>{comment.userName}</strong>
                   <span>{formatDateTime(comment.createdAt)}</span>
                   <p>{comment.comment}</p>
                 </article>
               ))}
+            </div>
+            <div className="system-log-panel">
+              <div className="section-title compact-title">
+                <h2>Logs del sistema</h2>
+                <span>{(draft.comments ?? []).filter(isSystemLog).length}</span>
+              </div>
+              <div className="log-list">
+                {(draft.comments ?? []).filter(isSystemLog).map((comment) => (
+                  <article key={comment.id}>
+                    <span>{formatDateTime(comment.createdAt)}</span>
+                    <p>{cleanLogMessage(comment.comment)}</p>
+                  </article>
+                ))}
+                {(draft.comments ?? []).filter(isSystemLog).length === 0 && (
+                  <div className="empty-state">Aun no hay logs registrados para esta solicitud.</div>
+                )}
+              </div>
             </div>
           </section>
         )}
