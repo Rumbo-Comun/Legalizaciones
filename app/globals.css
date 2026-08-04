@@ -162,6 +162,23 @@ label {
   margin: 0;
 }
 
+.login-logo {
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: flex;
+  justify-content: center;
+  padding: 12px;
+}
+
+.login-logo img {
+  display: block;
+  height: auto;
+  max-width: 230px;
+  width: 76%;
+}
+
 .workbench,
 .history {
   display: flex;
@@ -191,8 +208,14 @@ label {
   padding-bottom: 14px;
 }
 
-.crm-brand strong {
-  font-size: 1rem;
+.crm-brand img {
+  background: #ffffff;
+  border-radius: 8px;
+  display: block;
+  height: auto;
+  max-width: 185px;
+  padding: 8px;
+  width: 100%;
 }
 
 .crm-brand span,

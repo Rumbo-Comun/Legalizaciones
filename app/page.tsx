@@ -722,6 +722,9 @@ export default function Home() {
     return (
       <main className="login-shell">
         <form className="login-panel" onSubmit={login}>
+          <div className="login-logo">
+            <img src="/uscom-logo.png" alt="USCOM SAS" />
+          </div>
           <p className="eyebrow">Acceso privado</p>
           <h1>Legalizaciones</h1>
           <label>
@@ -748,7 +751,7 @@ export default function Home() {
     <main className="app-shell">
       <aside className="crm-sidebar">
         <div className="crm-brand">
-          <strong>USCOM SAS</strong>
+          <img src="/uscom-logo.png" alt="USCOM SAS" />
           <span>Legalizaciones</span>
         </div>
         <nav className="crm-nav" aria-label="Menu principal">

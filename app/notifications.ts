@@ -100,6 +100,7 @@ export async function notifyApprovalRequest(settlement: SettlementForMail, revie
   const from = requesterFrom(requester) || getRuntimeValue("MAIL_FROM") || "Legalizaciones USCOM <noreply@uscom.net.co>";
   const baseUrl = getRuntimeValue("APP_BASE_URL") || fallbackBaseUrl;
   const openUrl = normalizeAppUrl(baseUrl);
+  const logoUrl = `${openUrl}/uscom-logo.png`;
 
   if (!apiKey) {
     await logNotification(
@@ -118,6 +119,9 @@ export async function notifyApprovalRequest(settlement: SettlementForMail, revie
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width: 680px; background: #ffffff; border: 1px solid #dbe5ef; border-radius: 8px; overflow: hidden;">
               <tr>
                 <td style="background: #075eb8; color: #ffffff; padding: 24px 28px; text-align: center;">
+                  <div style="background: #ffffff; border-radius: 6px; display: inline-block; margin: 0 0 14px; padding: 8px 14px;">
+                    <img src="${escapeHtml(logoUrl)}" width="190" alt="USCOM SAS" style="border: 0; display: block; height: auto; max-width: 190px;" />
+                  </div>
                   <div style="font-size: 13px; font-weight: 800; letter-spacing: 0; text-transform: uppercase;">USCOM SAS</div>
                   <h1 style="font-size: 24px; line-height: 1.25; margin: 8px 0 0;">Nueva solicitud de consignacion</h1>
                   <p style="font-size: 14px; margin: 8px 0 0; opacity: 0.92;">${escapeHtml(settlement.projectName || settlement.fundCode || settlement.fundType)}</p>
