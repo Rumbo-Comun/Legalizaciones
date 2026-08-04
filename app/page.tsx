@@ -1149,14 +1149,14 @@ export default function Home() {
               />
             </label>
             <div className="workflow-actions request-actions">
-              <button type="button" className="ghost" disabled={!canEdit} onClick={() => void saveSettlement()}>
+              <button type="button" className="ghost request-action-button" disabled={!canEdit} onClick={() => void saveSettlement()}>
                 Guardar borrador
               </button>
-              <button type="button" className="save compact" disabled={!canEdit} onClick={submitForApproval}>
+              <button type="button" className="save request-action-button" disabled={!canEdit} onClick={submitForApproval}>
                 Enviar a aprobacion
               </button>
               {canApproveConsignation && (
-                <button type="button" className="pdf-button compact" disabled={!activeId} onClick={approveConsignation}>
+                <button type="button" className="pdf-button request-action-button" disabled={!activeId} onClick={approveConsignation}>
                   Aprobar consignacion
                 </button>
               )}

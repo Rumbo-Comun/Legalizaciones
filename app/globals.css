@@ -586,12 +586,14 @@ label {
   padding-top: 12px;
 }
 
-.request-actions button,
-.request-actions button.compact {
-  flex: 0 0 220px;
+.request-actions .request-action-button {
+  flex: 0 0 230px;
+  height: 42px;
   min-height: 42px;
-  min-width: 220px;
-  width: 220px;
+  min-width: 230px;
+  padding: 0 16px;
+  white-space: nowrap;
+  width: 230px;
 }
 
 .compact {
@@ -1468,8 +1470,13 @@ label {
     flex-wrap: wrap;
   }
 
-  .request-actions button {
-    flex-basis: min(100%, 230px);
+  .request-actions .request-action-button {
+    flex: 0 0 230px;
+    height: 42px;
+    min-height: 42px;
+    min-width: 230px;
+    white-space: nowrap;
+    width: 230px;
   }
 
   .user-form {
