@@ -565,8 +565,10 @@ label {
 }
 
 .request-actions button {
-  flex: 0 1 230px;
-  min-width: 190px;
+  flex: 0 0 220px;
+  min-height: 42px;
+  min-width: 220px;
+  width: 220px;
 }
 
 .compact {
