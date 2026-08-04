@@ -380,3 +380,64 @@ export async function notifyTopUpRequest(
 
   await logNotification(settlement.id, `Correo de ampliacion enviado a ${recipients.join(", ")} desde ${from}.`);
 }
+
+export async function notifyPasswordReset(user: Reviewer, token: string) {
+  if (!hasDeliverableEmail(user.email)) return false;
+
+  const apiKey = getRuntimeValue("RESEND_API_KEY");
+  const from = getRuntimeValue("MAIL_FROM") || "Legalizaciones USCOM <noreply@uscom.net.co>";
+  const baseUrl = getRuntimeValue("APP_BASE_URL") || fallbackBaseUrl;
+  const resetUrl = `${normalizeAppUrl(baseUrl)}/?reset=${encodeURIComponent(token)}`;
+
+  if (!apiKey) return false;
+
+  const html = `
+    <div style="margin:0; padding:24px 12px; background:#f3f7fb; font-family:Arial, Helvetica, sans-serif; color:#111827;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:620px; margin:0 auto; background:#ffffff; border:1px solid #dbe5ef; border-radius:8px; overflow:hidden;">
+        <tr>
+          <td style="background:#075eb8; color:#ffffff; padding:24px 28px; text-align:center;">
+            <h1 style="font-size:24px; margin:0;">Restablecer contraseña</h1>
+            <p style="font-size:14px; margin:8px 0 0; opacity:.92;">Sistema de Legalizacion de Gastos USCOM SAS</p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:26px 28px;">
+            <p style="font-size:15px; line-height:1.55; margin:0 0 16px;">
+              Hola ${escapeHtml(user.name)}, recibimos una solicitud para restablecer el acceso de su usuario.
+            </p>
+            <p style="font-size:14px; line-height:1.5; margin:0 0 18px; color:#4b5d73;">
+              Este enlace vence en 30 minutos. Si usted no solicito este cambio, puede ignorar este correo.
+            </p>
+            <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 16px;">
+              <tr>
+                <td bgcolor="#075eb8" style="border-radius:6px;">
+                  <a href="${escapeHtml(resetUrl)}" target="_blank" style="display:inline-block; color:#ffffff; font-size:14px; font-weight:800; padding:14px 22px; text-decoration:none;">Crear nueva contraseña</a>
+                </td>
+              </tr>
+            </table>
+            <p style="font-size:12px; line-height:1.5; margin:0; color:#7a8797;">
+              Enlace alterno:<br />
+              <a href="${escapeHtml(resetUrl)}" target="_blank" style="color:#075eb8; word-break:break-all;">${escapeHtml(resetUrl)}</a>
+            </p>
+          </td>
+        </tr>
+      </table>
+    </div>
+  `;
+
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from,
+      to: user.email,
+      subject: "Restablecer contraseña - Legalizaciones USCOM",
+      html,
+    }),
+  });
+
+  return response.ok;
+}

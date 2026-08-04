@@ -462,12 +462,65 @@ label {
 }
 
 .user-pill {
+  align-items: center;
   background: var(--mint);
   border-radius: 6px;
   color: var(--teal-dark);
+  display: inline-flex;
+  gap: 6px;
   font-size: 0.82rem;
   font-weight: 800;
   padding: 9px 10px;
+}
+
+.user-menu {
+  position: relative;
+}
+
+.menu-trigger,
+.link-button {
+  background: transparent;
+  border-color: transparent;
+  color: var(--blue-dark);
+  font-weight: 800;
+}
+
+.menu-trigger {
+  min-width: 92px;
+}
+
+.link-button {
+  margin: 0;
+  min-height: 28px;
+  padding: 0;
+  text-align: center;
+}
+
+.user-menu-list {
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: 4px;
+  min-width: 190px;
+  padding: 6px;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 20;
+}
+
+.user-menu-list button {
+  background: #ffffff;
+  border-color: transparent;
+  justify-content: flex-start;
+  text-align: left;
+  width: 100%;
+}
+
+.user-menu-list button:hover {
+  background: var(--sky);
 }
 
 .topbar,
@@ -1391,6 +1444,15 @@ label {
   display: flex;
   gap: 10px;
   justify-content: flex-end;
+}
+
+.password-modal {
+  max-width: 520px;
+}
+
+.password-modal label {
+  display: grid;
+  gap: 6px;
 }
 
 .activity-grid {

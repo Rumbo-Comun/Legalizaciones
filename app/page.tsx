@@ -186,8 +186,13 @@ function cleanLogMessage(value: string) {
 export default function Home() {
   const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
-  const [loginEmail, setLoginEmail] = useState("proyectos@uscom.net.co");
-  const [loginPassword, setLoginPassword] = useState("andres123");
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [recoverOpen, setRecoverOpen] = useState(false);
+  const [recoveryEmail, setRecoveryEmail] = useState("");
+  const [resetToken, setResetToken] = useState("");
+  const [resetPassword, setResetPassword] = useState("");
+  const [resetPasswordConfirm, setResetPasswordConfirm] = useState("");
   const [users, setUsers] = useState<AppUser[]>([]);
   const [newUser, setNewUser] = useState({
     name: "WILLIAM",
@@ -211,6 +216,11 @@ export default function Home() {
   const [requestsOpen, setRequestsOpen] = useState(true);
   const [managementTarget, setManagementTarget] = useState<Settlement | null>(null);
   const [activityTarget, setActivityTarget] = useState<Settlement | null>(null);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [newPasswordConfirm, setNewPasswordConfirm] = useState("");
 
   const totals = useMemo(() => {
     const spent = sumSpent(draft.expenses);
@@ -288,6 +298,11 @@ export default function Home() {
     void loadMe();
   }, []);
 
+  useEffect(() => {
+    const token = new URLSearchParams(window.location.search).get("reset");
+    if (token) setResetToken(token);
+  }, []);
+
   async function loadMe() {
     const response = await fetch("/api/auth/me");
     const data = await response.json();
@@ -323,6 +338,66 @@ export default function Home() {
     setRecords([]);
     setDraft(emptySettlement());
     setActiveId("");
+    setUserMenuOpen(false);
+  }
+
+  async function requestPasswordReset(event: FormEvent) {
+    event.preventDefault();
+    const response = await fetch("/api/auth/password-reset/request", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: recoveryEmail }),
+    });
+    const data = await response.json();
+    setNotice(data.message ?? data.error ?? "Solicitud procesada.");
+  }
+
+  async function confirmPasswordReset(event: FormEvent) {
+    event.preventDefault();
+    if (resetPassword !== resetPasswordConfirm) {
+      setNotice("Las claves no coinciden.");
+      return;
+    }
+    const response = await fetch("/api/auth/password-reset/confirm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token: resetToken, password: resetPassword }),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      setNotice(data.error ?? "No se pudo restablecer la clave.");
+      return;
+    }
+    window.history.replaceState(null, "", window.location.pathname);
+    setResetToken("");
+    setResetPassword("");
+    setResetPasswordConfirm("");
+    setRecoverOpen(false);
+    setNotice(data.message ?? "Clave actualizada. Ya puedes iniciar sesion.");
+  }
+
+  async function changePassword(event: FormEvent) {
+    event.preventDefault();
+    if (newPassword !== newPasswordConfirm) {
+      setNotice("Las claves no coinciden.");
+      return;
+    }
+    const response = await fetch("/api/auth/change-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      setNotice(data.error ?? "No se pudo cambiar la clave.");
+      return;
+    }
+    setPasswordModalOpen(false);
+    setCurrentPassword("");
+    setNewPassword("");
+    setNewPasswordConfirm("");
+    setNotice(data.message ?? "Clave actualizada.");
+    await logout();
   }
 
   async function loadUsers() {
@@ -852,7 +927,7 @@ export default function Home() {
   if (!currentUser) {
     return (
       <main className="login-shell">
-        <form className="login-panel" onSubmit={login}>
+        <form className="login-panel" onSubmit={resetToken ? confirmPasswordReset : recoverOpen ? requestPasswordReset : login}>
           <div className="login-logo">
             <img src="/uscom-logo.png" alt="USCOM SAS" />
           </div>
@@ -861,21 +936,54 @@ export default function Home() {
             <span>USCOM SAS</span>
           </div>
           <p className="eyebrow">Acceso privado</p>
-          <h1>Legalizaciones</h1>
-          <label>
-            Usuario
-            <input value={loginEmail} onChange={(event) => setLoginEmail(event.target.value)} />
-          </label>
-          <label>
-            Clave
-            <input
-              type="password"
-              value={loginPassword}
-              onChange={(event) => setLoginPassword(event.target.value)}
-            />
-          </label>
-          <button className="save" type="submit">Entrar</button>
-          <p className="muted">Local: proyectos@uscom.net.co / andres123 · canales@uscom.net.co / otto123 · admin@local / admin123</p>
+          <h1>{resetToken ? "Nueva clave" : recoverOpen ? "Recuperar acceso" : "Legalizaciones"}</h1>
+          {!recoverOpen && !resetToken && (
+            <>
+              <label>
+                Usuario
+                <input value={loginEmail} onChange={(event) => setLoginEmail(event.target.value)} autoComplete="username" />
+              </label>
+              <label>
+                Clave
+                <input
+                  type="password"
+                  value={loginPassword}
+                  onChange={(event) => setLoginPassword(event.target.value)}
+                  autoComplete="current-password"
+                />
+              </label>
+              <button className="save" type="submit">Entrar</button>
+              <button type="button" className="link-button" onClick={() => setRecoverOpen(true)}>
+                Olvide mi usuario o contrasena
+              </button>
+            </>
+          )}
+          {recoverOpen && !resetToken && (
+            <>
+              <p className="muted">Ingresa tu correo registrado y enviaremos un enlace temporal para restablecer el acceso.</p>
+              <label>
+                Correo registrado
+                <input value={recoveryEmail} onChange={(event) => setRecoveryEmail(event.target.value)} autoComplete="email" />
+              </label>
+              <button className="save" type="submit">Enviar enlace</button>
+              <button type="button" className="link-button" onClick={() => setRecoverOpen(false)}>
+                Volver al inicio de sesion
+              </button>
+            </>
+          )}
+          {resetToken && (
+            <>
+              <label>
+                Nueva clave
+                <input type="password" value={resetPassword} onChange={(event) => setResetPassword(event.target.value)} autoComplete="new-password" />
+              </label>
+              <label>
+                Confirmar clave
+                <input type="password" value={resetPasswordConfirm} onChange={(event) => setResetPasswordConfirm(event.target.value)} autoComplete="new-password" />
+              </label>
+              <button className="save" type="submit">Actualizar clave</button>
+            </>
+          )}
           {notice && <p className="notice">{notice}</p>}
         </form>
       </main>
@@ -966,7 +1074,25 @@ export default function Home() {
           </div>
           <div className="actions">
             <span className="user-pill">{currentUser.name} · {currentUser.role}</span>
-            <button type="button" onClick={logout}>Salir</button>
+            <div className="user-menu">
+              <button type="button" className="menu-trigger" onClick={() => setUserMenuOpen((open) => !open)} aria-expanded={userMenuOpen}>
+                Cuenta
+              </button>
+              {userMenuOpen && (
+                <div className="user-menu-list">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPasswordModalOpen(true);
+                      setUserMenuOpen(false);
+                    }}
+                  >
+                    Cambiar contrasena
+                  </button>
+                  <button type="button" onClick={logout}>Cerrar sesion</button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -1814,6 +1940,41 @@ export default function Home() {
                 </button>
               </div>
             </section>
+          </div>
+        )}
+        {passwordModalOpen && (
+          <div className="modal-backdrop" role="presentation">
+            <form className="confirm-modal password-modal" role="dialog" aria-modal="true" aria-labelledby="password-title" onSubmit={changePassword}>
+              <h2 id="password-title">Cambiar contrasena</h2>
+              <p>Actualiza tu clave de acceso. Al guardar, se cerraran las sesiones activas por seguridad.</p>
+              <label>
+                Clave actual
+                <input type="password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} autoComplete="current-password" />
+              </label>
+              <label>
+                Nueva clave
+                <input type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} autoComplete="new-password" />
+              </label>
+              <label>
+                Confirmar nueva clave
+                <input type="password" value={newPasswordConfirm} onChange={(event) => setNewPasswordConfirm(event.target.value)} autoComplete="new-password" />
+              </label>
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="ghost"
+                  onClick={() => {
+                    setPasswordModalOpen(false);
+                    setCurrentPassword("");
+                    setNewPassword("");
+                    setNewPasswordConfirm("");
+                  }}
+                >
+                  Cancelar
+                </button>
+                <button type="submit" className="save">Actualizar clave</button>
+              </div>
+            </form>
           </div>
         )}
       </section>

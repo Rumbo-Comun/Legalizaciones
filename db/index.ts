@@ -47,6 +47,15 @@ function initializeSchema(database: DatabaseSync) {
       created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS password_reset_tokens (
+      id text PRIMARY KEY NOT NULL,
+      user_id text NOT NULL REFERENCES users(id) ON DELETE cascade,
+      token_hash text NOT NULL UNIQUE,
+      expires_at text NOT NULL,
+      used_at text,
+      created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS settlements (
       id text PRIMARY KEY NOT NULL,
       employee text NOT NULL,
