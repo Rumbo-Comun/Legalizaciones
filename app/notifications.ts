@@ -44,6 +44,27 @@ function apiKeyFingerprint(apiKey: string) {
   return `${apiKey.slice(0, 6)}...${apiKey.slice(-4)} (${apiKey.length} caracteres)`;
 }
 
+function escapeHtml(value: unknown) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
+function detailRow(label: string, value: unknown, highlight = false) {
+  return `
+    <tr>
+      <td style="width: 185px; background: #f4f7fb; color: #4b5d73; font-weight: 700; padding: 13px 14px; border-bottom: 1px solid #e2e8f0;">
+        ${escapeHtml(label)}
+      </td>
+      <td style="padding: 13px 14px; border-bottom: 1px solid #e2e8f0; color: ${highlight ? "#075eb8" : "#111827"}; font-weight: ${highlight ? "800" : "600"};">
+        ${escapeHtml(value || "-")}
+      </td>
+    </tr>
+  `;
+}
+
 async function logNotification(settlementId: string, message: string) {
   const db = getDb();
   const [admin] = await db.select().from(users).where(eq(users.role, "admin"));
@@ -72,6 +93,7 @@ export async function notifyApprovalRequest(settlement: SettlementForMail, revie
   const apiKey = getRuntimeValue("RESEND_API_KEY");
   const from = requesterFrom(requester) || getRuntimeValue("MAIL_FROM") || "Legalizaciones USCOM <noreply@uscom.net.co>";
   const baseUrl = getRuntimeValue("APP_BASE_URL") || fallbackBaseUrl;
+  const openUrl = `${baseUrl.replace(/\/$/, "")}`;
 
   if (!apiKey) {
     await logNotification(
@@ -83,16 +105,49 @@ export async function notifyApprovalRequest(settlement: SettlementForMail, revie
 
   const subject = `Nueva solicitud de consignacion: ${settlement.projectName || settlement.fundCode || settlement.fundType}`;
   const html = `
-    <div style="font-family: Arial, sans-serif; color: #0b2347;">
-      <h2>Nueva solicitud de consignacion</h2>
-      <p><strong>Solicitante:</strong> ${settlement.employee}</p>
-      <p><strong>Correo solicitante:</strong> ${requester?.email || "-"}</p>
-      <p><strong>Tipo:</strong> ${settlement.fundType}</p>
-      <p><strong>Proyecto / objeto:</strong> ${settlement.projectName || "-"}</p>
-      <p><strong>Codigo:</strong> ${settlement.fundCode || "-"}</p>
-      <p><strong>Valor solicitado:</strong> ${formatCop(settlement.advanceCents)}</p>
-      <p><strong>Estado:</strong> ${settlement.status}</p>
-      <p><a href="${baseUrl}" style="color:#0a4fb3;font-weight:bold;">Abrir sistema de legalizaciones</a></p>
+    <div style="margin: 0; padding: 0; background: #f3f7fb; font-family: Arial, Helvetica, sans-serif; color: #111827;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background: #f3f7fb; padding: 24px 12px;">
+        <tr>
+          <td align="center">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width: 680px; background: #ffffff; border: 1px solid #dbe5ef; border-radius: 8px; overflow: hidden;">
+              <tr>
+                <td style="background: #075eb8; color: #ffffff; padding: 24px 28px; text-align: center;">
+                  <div style="font-size: 13px; font-weight: 800; letter-spacing: 0; text-transform: uppercase;">USCOM SAS</div>
+                  <h1 style="font-size: 24px; line-height: 1.25; margin: 8px 0 0;">Nueva solicitud de consignacion</h1>
+                  <p style="font-size: 14px; margin: 8px 0 0; opacity: 0.92;">${escapeHtml(settlement.projectName || settlement.fundCode || settlement.fundType)}</p>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 26px 28px;">
+                  <p style="font-size: 15px; line-height: 1.55; margin: 0 0 16px;">
+                    Se ha enviado una solicitud para revision y aprobacion de consignacion. A continuacion encontrara el resumen registrado en el sistema.
+                  </p>
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse; border: 1px solid #e2e8f0; margin: 18px 0;">
+                    ${detailRow("Solicitante", settlement.employee)}
+                    ${detailRow("Correo solicitante", requester?.email)}
+                    ${detailRow("Tipo", settlement.fundType)}
+                    ${detailRow("Proyecto / objeto", settlement.projectName)}
+                    ${detailRow("Codigo", settlement.fundCode)}
+                    ${detailRow("Valor solicitado", formatCop(settlement.advanceCents), true)}
+                    ${detailRow("Estado", settlement.status)}
+                  </table>
+                  <p style="font-size: 14px; line-height: 1.5; margin: 0 0 18px; color: #4b5d73;">
+                    Para revisar soportes, registrar observaciones o aprobar la consignacion, abra la solicitud en la plataforma.
+                  </p>
+                  <a href="${escapeHtml(openUrl)}" style="display: inline-block; background: #075eb8; color: #ffffff; text-decoration: none; font-weight: 800; padding: 14px 22px; border-radius: 6px;">
+                    Abrir solicitud en Legalizaciones
+                  </a>
+                </td>
+              </tr>
+              <tr>
+                <td style="background: #f8fafc; color: #7a8797; font-size: 12px; padding: 16px 28px; text-align: center;">
+                  Sistema de Gestion USCOM SAS
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
     </div>
   `;
 
