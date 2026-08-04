@@ -186,6 +186,7 @@ export default function Home() {
   const [pdfBusy, setPdfBusy] = useState(false);
   const [activeView, setActiveView] = useState<"dashboard" | "new" | "status" | "reports" | "admin">("dashboard");
   const [managementTarget, setManagementTarget] = useState<Settlement | null>(null);
+  const [activityTarget, setActivityTarget] = useState<Settlement | null>(null);
 
   const totals = useMemo(() => {
     const spent = draft.expenses.reduce((sum, item) => sum + item.amountCents, 0);
@@ -352,6 +353,7 @@ export default function Home() {
     setDraft(normalizeSettlement(record));
     setActiveId(record.id);
     setActiveView("new");
+    setActivityTarget(null);
     if (message) setNotice(message);
   }
 
@@ -1481,7 +1483,7 @@ export default function Home() {
                         <button
                           type="button"
                           className="mini-action"
-                          onClick={() => openRecord(record, "Actividad abierta para revision.")}
+                          onClick={() => setActivityTarget(normalizeSettlement(record))}
                         >
                           Ver actividad
                         </button>
@@ -1664,6 +1666,73 @@ export default function Home() {
                 </button>
                 <button type="button" className="save" onClick={() => void sendToManagement(managementTarget)}>
                   Confirmar envio
+                </button>
+              </div>
+            </section>
+          </div>
+        )}
+        {activityTarget && (
+          <div className="modal-backdrop" role="presentation">
+            <section className="activity-modal" role="dialog" aria-modal="true" aria-labelledby="activity-title">
+              <div className="section-title">
+                <div>
+                  <h2 id="activity-title">Actividad de la solicitud</h2>
+                  <span>{activityTarget.projectName || activityTarget.fundCode || activityTarget.fundType}</span>
+                </div>
+                <span className={`request-status ${activityTarget.status.replaceAll(" ", "-")}`}>{activityTarget.status}</span>
+              </div>
+
+              <div className="activity-grid">
+                <section>
+                  <h3>Soportes</h3>
+                  <div className="activity-list">
+                    {activityTarget.evidences.map((evidence) => (
+                      <a key={evidence.id} href={`/api/evidences/${evidence.id}`} target="_blank" rel="noreferrer">
+                        {evidence.fileName}
+                      </a>
+                    ))}
+                    {activityTarget.evidences.length === 0 && <div className="empty-state">No hay soportes cargados.</div>}
+                  </div>
+                </section>
+
+                <section>
+                  <h3>Novedades</h3>
+                  <div className="comment-list activity-list">
+                    {(activityTarget.comments ?? []).filter((comment) => !isSystemLog(comment)).map((comment) => (
+                      <article key={comment.id}>
+                        <strong>{comment.userName}</strong>
+                        <span>{formatDateTime(comment.createdAt)}</span>
+                        <p>{comment.comment}</p>
+                      </article>
+                    ))}
+                    {(activityTarget.comments ?? []).filter((comment) => !isSystemLog(comment)).length === 0 && (
+                      <div className="empty-state">Aun no hay novedades registradas.</div>
+                    )}
+                  </div>
+                </section>
+
+                <section>
+                  <h3>Logs del sistema</h3>
+                  <div className="log-list activity-list">
+                    {(activityTarget.comments ?? []).filter(isSystemLog).map((comment) => (
+                      <article key={comment.id}>
+                        <span>{formatDateTime(comment.createdAt)}</span>
+                        <p>{cleanLogMessage(comment.comment)}</p>
+                      </article>
+                    ))}
+                    {(activityTarget.comments ?? []).filter(isSystemLog).length === 0 && (
+                      <div className="empty-state">Aun no hay logs registrados.</div>
+                    )}
+                  </div>
+                </section>
+              </div>
+
+              <div className="modal-actions">
+                <button type="button" className="ghost" onClick={() => setActivityTarget(null)}>
+                  Cerrar
+                </button>
+                <button type="button" className="save" onClick={() => openRecord(activityTarget)}>
+                  Abrir solicitud
                 </button>
               </div>
             </section>

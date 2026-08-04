@@ -1292,6 +1292,21 @@ label {
   width: min(100%, 460px);
 }
 
+.activity-modal {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  color: var(--foreground);
+  display: grid;
+  gap: 16px;
+  max-height: min(86vh, 760px);
+  max-width: 920px;
+  overflow: auto;
+  padding: 20px;
+  width: min(100%, 920px);
+}
+
 .confirm-modal h2,
 .confirm-modal p {
   margin: 0;
@@ -1328,6 +1343,45 @@ label {
   display: flex;
   gap: 10px;
   justify-content: flex-end;
+}
+
+.activity-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr) minmax(0, 1.1fr);
+}
+
+.activity-grid section {
+  background: #f8fbff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+}
+
+.activity-grid h3 {
+  color: var(--ink);
+  font-size: 0.95rem;
+  margin: 0;
+}
+
+.activity-list {
+  max-height: 310px;
+  overflow: auto;
+}
+
+.activity-list a {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--blue-dark);
+  display: block;
+  font-size: 0.84rem;
+  font-weight: 800;
+  margin-bottom: 8px;
+  padding: 9px 10px;
+  text-decoration: none;
 }
 
 .history {
@@ -1524,5 +1578,17 @@ label {
     border-right: 0;
     border-bottom: 1px solid var(--line);
     padding: 0 0 12px;
+  }
+
+  .activity-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .modal-actions {
+    justify-content: stretch;
+  }
+
+  .modal-actions button {
+    flex: 1;
   }
 }
