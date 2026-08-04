@@ -162,7 +162,7 @@ export default function Home() {
   const [notice, setNotice] = useState("");
   const [uploading, setUploading] = useState("");
   const [pdfBusy, setPdfBusy] = useState(false);
-  const [activeView, setActiveView] = useState<"dashboard" | "new" | "status" | "admin">("dashboard");
+  const [activeView, setActiveView] = useState<"dashboard" | "new" | "status" | "reports" | "admin">("dashboard");
 
   const totals = useMemo(() => {
     const subtotal = draft.expenses.reduce((sum, item) => sum + item.amountCents, 0);
@@ -204,6 +204,20 @@ export default function Home() {
     const completed = records.filter((record) => record.status === "aprobado").length;
     const supportCount = records.reduce((sum, record) => sum + record.evidences.length, 0);
     return { totalRequested, totalSpent, pending, active, completed, supportCount };
+  }, [records]);
+  const reportRows = useMemo(() => {
+    const categories = new Map<string, { category: string; count: number; amount: number; tax: number }>();
+    for (const record of records) {
+      for (const expense of record.expenses) {
+        const key = expense.category || "Sin categoria";
+        const current = categories.get(key) ?? { category: key, count: 0, amount: 0, tax: 0 };
+        current.count += 1;
+        current.amount += expense.amountCents;
+        current.tax += expense.taxCents;
+        categories.set(key, current);
+      }
+    }
+    return [...categories.values()].sort((left, right) => right.amount + right.tax - (left.amount + left.tax));
   }, [records]);
 
   useEffect(() => {
@@ -744,6 +758,10 @@ export default function Home() {
             <span>Estado actual</span>
             <strong>{dashboardStats.pending}</strong>
           </button>
+          <button type="button" className={activeView === "reports" ? "active" : ""} onClick={() => setActiveView("reports")}>
+            <span>Reportes</span>
+            <strong>{reportRows.length}</strong>
+          </button>
           {canAdmin && (
             <button type="button" className={activeView === "admin" ? "active" : ""} onClick={() => setActiveView("admin")}>
               <span>Administrador</span>
@@ -767,6 +785,7 @@ export default function Home() {
               {activeView === "dashboard" && "Resumen analitico"}
               {activeView === "new" && "Solicitud nueva"}
               {activeView === "status" && "Estado actual"}
+              {activeView === "reports" && "Reportes"}
               {activeView === "admin" && "Administrador"}
             </h1>
           </div>
@@ -1351,6 +1370,74 @@ export default function Home() {
                 })}
               </div>
             )}
+          </section>
+        )}
+
+        {activeView === "reports" && (
+          <section className="panel reports-board">
+            <div className="section-title">
+              <h2>Reportes financieros</h2>
+              <div className="report-actions">
+                <button type="button" className="ghost compact" onClick={() => exportFile("csv")}>CSV</button>
+                <button type="button" className="ghost compact" onClick={() => exportFile("json")}>JSON</button>
+              </div>
+            </div>
+
+            <div className="summary-grid">
+              <Metric label="Solicitudes" value={String(records.length)} />
+              <Metric label="Solicitado" value={formatMoney(dashboardStats.totalRequested)} />
+              <Metric label="Ejecutado" value={formatMoney(dashboardStats.totalSpent)} />
+              <Metric
+                label="Saldo global"
+                value={formatMoney(Math.max(0, dashboardStats.totalRequested - dashboardStats.totalSpent))}
+                tone="ok"
+              />
+            </div>
+
+            <div className="report-grid">
+              <section>
+                <div className="section-title compact-title">
+                  <h2>Gasto por categoria</h2>
+                  <span>{reportRows.length} categorias</span>
+                </div>
+                {reportRows.length === 0 && <div className="empty-state">Aun no hay gastos registrados para reportar.</div>}
+                {reportRows.length > 0 && (
+                  <div className="report-table">
+                    <div className="report-row header">
+                      <span>Categoria</span>
+                      <span>Mov.</span>
+                      <span>Base</span>
+                      <span>IVA</span>
+                      <span>Total</span>
+                    </div>
+                    {reportRows.map((row) => (
+                      <div className="report-row" key={row.category}>
+                        <span>{row.category}</span>
+                        <span>{row.count}</span>
+                        <span>{formatMoney(row.amount)}</span>
+                        <span>{formatMoney(row.tax)}</span>
+                        <strong>{formatMoney(row.amount + row.tax)}</strong>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+
+              <section className="report-side">
+                <div>
+                  <span>Pendientes de aprobacion</span>
+                  <strong>{dashboardStats.pending}</strong>
+                </div>
+                <div>
+                  <span>Fondos en tramite</span>
+                  <strong>{dashboardStats.active}</strong>
+                </div>
+                <div>
+                  <span>Soportes cargados</span>
+                  <strong>{dashboardStats.supportCount}</strong>
+                </div>
+              </section>
+            </div>
           </section>
         )}
 
