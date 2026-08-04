@@ -284,6 +284,11 @@ label {
   gap: 8px;
 }
 
+.nav-group {
+  display: grid;
+  gap: 6px;
+}
+
 .crm-nav button {
   align-items: center;
   background: rgba(255, 255, 255, 0.06);
@@ -312,6 +317,19 @@ label {
 .crm-nav button.active strong {
   background: var(--mint);
   color: var(--teal-dark);
+}
+
+.crm-subnav {
+  border-left: 1px solid rgba(255, 255, 255, 0.16);
+  display: grid;
+  gap: 6px;
+  margin-left: 12px;
+  padding-left: 10px;
+}
+
+.crm-subnav button {
+  min-height: 36px;
+  padding: 9px 10px;
 }
 
 .sidebar-summary {

@@ -184,7 +184,8 @@ export default function Home() {
   const [notice, setNotice] = useState("");
   const [uploading, setUploading] = useState("");
   const [pdfBusy, setPdfBusy] = useState(false);
-  const [activeView, setActiveView] = useState<"dashboard" | "new" | "status" | "reports" | "admin">("dashboard");
+  const [activeView, setActiveView] = useState<"dashboard" | "new" | "requestInfo" | "status" | "reports" | "admin">("dashboard");
+  const [requestsOpen, setRequestsOpen] = useState(true);
   const [managementTarget, setManagementTarget] = useState<Settlement | null>(null);
   const [activityTarget, setActivityTarget] = useState<Settlement | null>(null);
 
@@ -352,7 +353,8 @@ export default function Home() {
   function openRecord(record: Settlement, message?: string) {
     setDraft(normalizeSettlement(record));
     setActiveId(record.id);
-    setActiveView("new");
+    setRequestsOpen(true);
+    setActiveView("requestInfo");
     setActivityTarget(null);
     if (message) setNotice(message);
   }
@@ -859,22 +861,41 @@ export default function Home() {
             <span>Resumen analitico</span>
             <strong>{records.length}</strong>
           </button>
-          <button
-            type="button"
-            className={activeView === "new" ? "active" : ""}
-            onClick={() => {
-              setDraft(emptySettlement());
-              setActiveId("");
-              setActiveView("new");
-            }}
-          >
-            <span>Solicitud nueva</span>
-            <strong>+</strong>
-          </button>
-          <button type="button" className={activeView === "status" ? "active" : ""} onClick={() => setActiveView("status")}>
-            <span>Estado actual</span>
-            <strong>{dashboardStats.pending}</strong>
-          </button>
+          <div className="nav-group">
+            <button
+              type="button"
+              className={["new", "requestInfo", "status"].includes(activeView) ? "active nav-parent" : "nav-parent"}
+              onClick={() => setRequestsOpen((open) => !open)}
+              aria-expanded={requestsOpen}
+            >
+              <span>Solicitudes</span>
+              <strong>{requestsOpen ? "-" : "+"}</strong>
+            </button>
+            {requestsOpen && (
+              <div className="crm-subnav">
+                <button
+                  type="button"
+                  className={activeView === "new" ? "active" : ""}
+                  onClick={() => {
+                    setDraft(emptySettlement());
+                    setActiveId("");
+                    setActiveView("new");
+                  }}
+                >
+                  <span>Nueva solicitud</span>
+                  <strong>+</strong>
+                </button>
+                <button
+                  type="button"
+                  className={activeView === "status" || activeView === "requestInfo" ? "active" : ""}
+                  onClick={() => setActiveView("status")}
+                >
+                  <span>Gestion de solicitudes</span>
+                  <strong>{dashboardStats.pending}</strong>
+                </button>
+              </div>
+            )}
+          </div>
           <button type="button" className={activeView === "reports" ? "active" : ""} onClick={() => setActiveView("reports")}>
             <span>Reportes</span>
             <strong>{reportRows.length}</strong>
@@ -903,7 +924,8 @@ export default function Home() {
             <h1>
               {activeView === "dashboard" && "Resumen analitico"}
               {activeView === "new" && "Solicitud nueva"}
-              {activeView === "status" && "Estado actual"}
+              {activeView === "requestInfo" && "Informacion de solicitud"}
+              {activeView === "status" && "Gestion de solicitudes"}
               {activeView === "reports" && "Reportes"}
               {activeView === "admin" && "Administrador"}
             </h1>
@@ -967,7 +989,7 @@ export default function Home() {
           </>
         )}
 
-        {activeView === "new" && (
+        {(activeView === "new" || activeView === "requestInfo") && (
           <>
         <section className="workflow-panel">
           <div className={`workflow-step ${draft.status === "borrador" ? "active" : ""}`}>
@@ -991,7 +1013,7 @@ export default function Home() {
         <form className="editor" onSubmit={saveSettlement}>
           <section className="panel details-panel">
             <div className="section-title">
-              <h2>1. Solicitud de consignacion</h2>
+              <h2>{activeView === "requestInfo" ? "Informacion de la solicitud" : "1. Solicitud de consignacion"}</h2>
               <span className={`request-status ${draft.status.replaceAll(" ", "-")}`}>{draft.status}</span>
             </div>
 
@@ -1435,7 +1457,7 @@ export default function Home() {
         {activeView === "status" && (
           <section className="panel status-board">
             <div className="section-title">
-              <h2>Solicitudes del usuario</h2>
+              <h2>Gestion de solicitudes</h2>
               <span>{records.length} registros</span>
             </div>
             {loading && <p className="muted">Cargando...</p>}
