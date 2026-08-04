@@ -207,6 +207,7 @@ export default function Home() {
   const canAttachSupport = !draftClosed && (canEdit || canReviewFund);
   const canSave = !draftClosed && (canEdit || canReviewFund);
   const canAdmin = currentUser?.role === "admin";
+  const canManageAccess = canAdmin || isOttoUser;
   const adminStats = useMemo(() => {
     const activeUsers = users.filter((user) => user.active !== 0).length;
     const requesters = users.filter((user) => user.role === "solicitante").length;
@@ -269,7 +270,7 @@ export default function Home() {
     setAuthChecked(true);
     if (data.user) {
       await loadRecords();
-      if (data.user.role === "admin") await loadUsers();
+      if (data.user.role === "admin" || data.user.name.toUpperCase().includes("OTTO")) await loadUsers();
     }
   }
 
@@ -288,7 +289,7 @@ export default function Home() {
     setCurrentUser(data.user);
     setNotice("");
     await loadRecords();
-    if (data.user.role === "admin") await loadUsers();
+    if (data.user.role === "admin" || data.user.name.toUpperCase().includes("OTTO")) await loadUsers();
   }
 
   async function logout() {
@@ -775,7 +776,7 @@ export default function Home() {
   }
 
   async function grantAccess() {
-    if (!activeId || !selectedUserId) return;
+    if (!activeId || !selectedUserId || !canManageAccess) return;
     const response = await fetch(`/api/settlements/${activeId}/access`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -1402,7 +1403,7 @@ export default function Home() {
               <h2>Accesos y revision</h2>
               <span>{draft.access?.length ?? 0} revisores</span>
             </div>
-            {canAdmin && (
+            {canManageAccess && (
               <div className="review-grid">
                 <label>
                   Permitir revision a
