@@ -486,7 +486,7 @@ export default function Home() {
     await fetch(`/api/settlements/${record.id}/comments`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ comment: "Solicitud enviada a gerencia. Se cierra la carga de soportes y novedades de gastos." }),
+      body: JSON.stringify({ comment: "Solicitud enviada a gerencia. Se cierra la actividad para nuevos soportes y gastos." }),
     });
 
     const nextSettlement = normalizeSettlement(data.settlement);
@@ -794,6 +794,10 @@ export default function Home() {
 
   async function addComment() {
     if (!activeId || !commentDraft.trim()) return;
+    if (draftClosed) {
+      setNotice("La solicitud ya fue enviada a gerencia y la actividad esta cerrada.");
+      return;
+    }
     const response = await fetch(`/api/settlements/${activeId}/comments`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -1187,7 +1191,12 @@ export default function Home() {
                   Crea la solicitud y enviala a aprobacion. Los gastos se habilitan cuando Contabilidad / Gerencia marque la consignacion.
                 </div>
               )}
-              {hasConsignation && !expensesEnabled && (
+              {draftClosed && (
+                <div className="empty-state">
+                  Solicitud enviada a gerencia. La actividad esta cerrada para nuevos gastos y soportes.
+                </div>
+              )}
+              {hasConsignation && !draftClosed && !expensesEnabled && (
                 <div className="empty-state">
                   Solicitud en aprobacion. Esperando consignacion para registrar gastos.
                 </div>
@@ -1418,11 +1427,12 @@ export default function Home() {
               Novedad
               <textarea
                 value={commentDraft}
+                disabled={draftClosed}
                 onChange={(event) => setCommentDraft(event.target.value)}
                 placeholder="Registra una novedad, observacion o comentario de revision"
               />
             </label>
-            <button type="button" className="pdf-button novelty-action" onClick={addComment}>Registrar novedad</button>
+            <button type="button" className="pdf-button novelty-action" disabled={draftClosed} onClick={addComment}>Registrar novedad</button>
             <div className="comment-list">
               {(draft.comments ?? []).filter((comment) => !isSystemLog(comment)).map((comment) => (
                 <article key={comment.id}>
