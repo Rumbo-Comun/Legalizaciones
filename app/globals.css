@@ -587,8 +587,13 @@ label {
 }
 
 .request-actions .request-action-button {
+  align-items: center;
+  box-sizing: border-box;
+  display: inline-flex;
   flex: 0 0 230px;
   height: 42px;
+  justify-content: center;
+  line-height: 1;
   min-height: 42px;
   min-width: 230px;
   padding: 0 16px;
@@ -1479,8 +1484,13 @@ label {
   }
 
   .request-actions .request-action-button {
+    align-items: center;
+    box-sizing: border-box;
+    display: inline-flex;
     flex: 0 0 230px;
     height: 42px;
+    justify-content: center;
+    line-height: 1;
     min-height: 42px;
     min-width: 230px;
     white-space: nowrap;
