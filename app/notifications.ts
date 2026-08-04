@@ -13,7 +13,9 @@ type SettlementForMail = typeof settlements.$inferSelect;
 const fallbackBaseUrl = "http://127.0.0.1:3020";
 
 function getRuntimeValue(key: string) {
-  return process.env?.[key] || undefined;
+  const value = process.env?.[key]?.trim();
+  if (!value) return undefined;
+  return value.replace(/^["']|["']$/g, "");
 }
 
 function formatCop(cents: number) {
