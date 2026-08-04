@@ -41,6 +41,8 @@ type ReviewComment = {
   createdAt: string;
 };
 
+type CurrencyCode = "COP" | "USD";
+
 type AppUser = {
   id: string;
   name: string;
@@ -63,7 +65,7 @@ type Settlement = {
   periodStart: string;
   periodEnd: string;
   status: string;
-  currency: "COP" | "USD";
+  currency: CurrencyCode;
   advanceCents: number;
   cashReturnedCents: number;
   notes: string;
@@ -113,13 +115,13 @@ function parseMoney(value: string) {
   return Number.isFinite(numeric) ? Math.round(numeric * 100) : 0;
 }
 
-function formatMoney(cents: number, currency: "COP" | "USD" = "COP") {
+function formatMoney(cents: number, currency: CurrencyCode = "COP") {
   return `${currency} ${new Intl.NumberFormat("es-CO", {
     maximumFractionDigits: 0,
   }).format(Math.round(cents / 100))}`;
 }
 
-function coerceCurrency(value: unknown): "COP" | "USD" {
+function coerceCurrency(value: unknown): CurrencyCode {
   return String(value || "COP").toUpperCase() === "USD" ? "USD" : "COP";
 }
 
@@ -214,29 +216,42 @@ export default function Home() {
     draft.status,
   );
   const dashboardStats = useMemo(() => {
-    const totalRequested = records.reduce((sum, record) => sum + record.advanceCents, 0);
-    const totalSpent = records.reduce(
-      (sum, record) => sum + record.expenses.reduce((expenseSum, item) => expenseSum + item.amountCents + item.taxCents, 0),
-      0,
-    );
     const pending = records.filter((record) => record.status === "pendiente aprobacion").length;
     const active = records.filter((record) =>
       ["consignado", "registrando gastos", "solicitud ampliacion"].includes(record.status),
     ).length;
     const completed = records.filter((record) => record.status === "aprobado").length;
     const supportCount = records.reduce((sum, record) => sum + record.evidences.length, 0);
-    return { totalRequested, totalSpent, pending, active, completed, supportCount };
+    return { pending, active, completed, supportCount };
+  }, [records]);
+  const currencyStats = useMemo(() => {
+    const stats: Record<CurrencyCode, { currency: CurrencyCode; requested: number; spent: number; returned: number; balance: number; count: number }> = {
+      COP: { currency: "COP", requested: 0, spent: 0, returned: 0, balance: 0, count: 0 },
+      USD: { currency: "USD", requested: 0, spent: 0, returned: 0, balance: 0, count: 0 },
+    };
+    for (const record of records) {
+      const currency = coerceCurrency(record.currency);
+      const spent = record.expenses.reduce((sum, item) => sum + item.amountCents + item.taxCents, 0);
+      stats[currency].requested += record.advanceCents;
+      stats[currency].spent += spent;
+      stats[currency].returned += record.cashReturnedCents;
+      stats[currency].balance += record.advanceCents - spent - record.cashReturnedCents;
+      stats[currency].count += 1;
+    }
+    return [stats.COP, stats.USD];
   }, [records]);
   const reportRows = useMemo(() => {
-    const categories = new Map<string, { category: string; count: number; amount: number; tax: number }>();
+    const categories = new Map<string, { category: string; currency: CurrencyCode; count: number; amount: number; tax: number }>();
     for (const record of records) {
+      const currency = coerceCurrency(record.currency);
       for (const expense of record.expenses) {
         const key = expense.category || "Sin categoria";
-        const current = categories.get(key) ?? { category: key, count: 0, amount: 0, tax: 0 };
+        const mapKey = `${currency}-${key}`;
+        const current = categories.get(mapKey) ?? { category: key, currency, count: 0, amount: 0, tax: 0 };
         current.count += 1;
         current.amount += expense.amountCents;
         current.tax += expense.taxCents;
-        categories.set(key, current);
+        categories.set(mapKey, current);
       }
     }
     return [...categories.values()].sort((left, right) => right.amount + right.tax - (left.amount + left.tax));
@@ -803,10 +818,12 @@ export default function Home() {
           )}
         </nav>
         <div className="sidebar-summary">
-          <span>Solicitado</span>
-          <strong>{formatMoney(dashboardStats.totalRequested)}</strong>
-          <span>Gastado</span>
-          <strong>{formatMoney(dashboardStats.totalSpent)}</strong>
+          {currencyStats.map((stat) => (
+            <div className="sidebar-currency" key={stat.currency}>
+              <span>{stat.currency}</span>
+              <strong>{formatMoney(stat.balance, stat.currency)}</strong>
+            </div>
+          ))}
         </div>
       </aside>
 
@@ -830,12 +847,33 @@ export default function Home() {
 
         {activeView === "dashboard" && (
           <>
-            <div className="summary-grid">
-              <Metric label="Total solicitado" value={formatMoney(dashboardStats.totalRequested)} />
-              <Metric label="Total gastado" value={formatMoney(dashboardStats.totalSpent)} />
-              <Metric label="Pendientes Contabilidad / Gerencia" value={String(dashboardStats.pending)} tone={dashboardStats.pending ? "warn" : undefined} />
-              <Metric label="Soportes cargados" value={String(dashboardStats.supportCount)} tone="ok" />
-            </div>
+            <section className="panel currency-analytics">
+              <div className="section-title">
+                <h2>Analitica por moneda</h2>
+                <span>COP / USD separados</span>
+              </div>
+              <div className="currency-grid">
+                {currencyStats.map((stat) => (
+                  <article className="currency-card" key={stat.currency}>
+                    <div>
+                      <span>Moneda</span>
+                      <strong>{stat.currency}</strong>
+                      <small>{stat.count} solicitudes</small>
+                    </div>
+                    <dl>
+                      <dt>Solicitado / consignado</dt>
+                      <dd>{formatMoney(stat.requested, stat.currency)}</dd>
+                      <dt>Gastado</dt>
+                      <dd>{formatMoney(stat.spent, stat.currency)}</dd>
+                      <dt>Devuelto</dt>
+                      <dd>{formatMoney(stat.returned, stat.currency)}</dd>
+                      <dt>{stat.balance >= 0 ? "Disponible" : "Excedido"}</dt>
+                      <dd className={stat.balance < 0 ? "negative" : "positive"}>{formatMoney(Math.abs(stat.balance), stat.currency)}</dd>
+                    </dl>
+                  </article>
+                ))}
+              </div>
+            </section>
 
             <section className="panel crm-dashboard">
               <div className="section-title">
@@ -862,17 +900,6 @@ export default function Home() {
 
         {activeView === "new" && (
           <>
-            <div className="summary-grid">
-              <Metric label="Solicitado / consignado" value={formatMoney(draft.advanceCents, draft.currency)} />
-              <Metric label="Gastado" value={formatMoney(totals.spent, draft.currency)} />
-              <Metric label="Devuelto" value={formatMoney(draft.cashReturnedCents, draft.currency)} />
-              <Metric
-                label={totals.balance >= 0 ? "Disponible" : "Excedido"}
-                value={formatMoney(Math.abs(totals.balance), draft.currency)}
-                tone={totals.balance < 0 ? "warn" : "ok"}
-              />
-            </div>
-
         <section className="workflow-panel">
           <div className={`workflow-step ${draft.status === "borrador" ? "active" : ""}`}>
             <strong>1</strong>
@@ -1413,13 +1440,9 @@ export default function Home() {
 
             <div className="summary-grid">
               <Metric label="Solicitudes" value={String(records.length)} />
-              <Metric label="Solicitado" value={formatMoney(dashboardStats.totalRequested)} />
-              <Metric label="Ejecutado" value={formatMoney(dashboardStats.totalSpent)} />
-              <Metric
-                label="Saldo global"
-                value={formatMoney(Math.max(0, dashboardStats.totalRequested - dashboardStats.totalSpent))}
-                tone="ok"
-              />
+              <Metric label="Pendientes aprobacion" value={String(dashboardStats.pending)} tone={dashboardStats.pending ? "warn" : undefined} />
+              <Metric label="Fondos en tramite" value={String(dashboardStats.active)} />
+              <Metric label="Soportes cargados" value={String(dashboardStats.supportCount)} tone="ok" />
             </div>
 
             <div className="report-grid">
@@ -1433,18 +1456,20 @@ export default function Home() {
                   <div className="report-table">
                     <div className="report-row header">
                       <span>Categoria</span>
+                      <span>Moneda</span>
                       <span>Mov.</span>
                       <span>Base</span>
                       <span>IVA</span>
                       <span>Total</span>
                     </div>
                     {reportRows.map((row) => (
-                      <div className="report-row" key={row.category}>
+                      <div className="report-row" key={`${row.currency}-${row.category}`}>
                         <span>{row.category}</span>
+                        <span>{row.currency}</span>
                         <span>{row.count}</span>
-                        <span>{formatMoney(row.amount)}</span>
-                        <span>{formatMoney(row.tax)}</span>
-                        <strong>{formatMoney(row.amount + row.tax)}</strong>
+                        <span>{formatMoney(row.amount, row.currency)}</span>
+                        <span>{formatMoney(row.tax, row.currency)}</span>
+                        <strong>{formatMoney(row.amount + row.tax, row.currency)}</strong>
                       </div>
                     ))}
                   </div>
