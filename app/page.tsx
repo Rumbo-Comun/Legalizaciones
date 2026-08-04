@@ -121,6 +121,23 @@ function formatMoney(cents: number) {
   return money.format(Math.round(cents / 100));
 }
 
+function parseUtcTimestamp(value: string) {
+  if (!value) return null;
+  const normalized = value.includes("T") ? value : `${value.replace(" ", "T")}Z`;
+  const date = new Date(normalized);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function formatDateTime(value: string) {
+  const date = parseUtcTimestamp(value);
+  if (!date) return value;
+  return new Intl.DateTimeFormat("es-CO", {
+    dateStyle: "short",
+    timeStyle: "medium",
+    timeZone: "America/Bogota",
+  }).format(date);
+}
+
 export default function Home() {
   const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
@@ -1175,7 +1192,7 @@ export default function Home() {
               {(draft.comments ?? []).map((comment) => (
                 <article key={comment.id}>
                   <strong>{comment.userName}</strong>
-                  <span>{new Date(comment.createdAt).toLocaleString("es-CO")}</span>
+                  <span>{formatDateTime(comment.createdAt)}</span>
                   <p>{comment.comment}</p>
                 </article>
               ))}

@@ -40,6 +40,10 @@ function requesterFrom(requester?: Reviewer) {
   return `${name} <${requester!.email}>`;
 }
 
+function apiKeyFingerprint(apiKey: string) {
+  return `${apiKey.slice(0, 6)}...${apiKey.slice(-4)} (${apiKey.length} caracteres)`;
+}
+
 async function logNotification(settlementId: string, message: string) {
   const db = getDb();
   const [admin] = await db.select().from(users).where(eq(users.role, "admin"));
@@ -111,7 +115,7 @@ export async function notifyApprovalRequest(settlement: SettlementForMail, revie
     const detail = await response.text();
     await logNotification(
       settlement.id,
-      `No se pudo enviar correo a ${recipients.join(", ")}. Respuesta proveedor: ${detail}`,
+      `No se pudo enviar correo a ${recipients.join(", ")}. Key usada: ${apiKeyFingerprint(apiKey)}. Respuesta proveedor: ${detail}`,
     );
     return;
   }
