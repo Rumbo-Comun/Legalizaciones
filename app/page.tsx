@@ -187,11 +187,9 @@ export default function Home() {
   const [activeView, setActiveView] = useState<"dashboard" | "new" | "status" | "reports" | "admin">("dashboard");
 
   const totals = useMemo(() => {
-    const subtotal = draft.expenses.reduce((sum, item) => sum + item.amountCents, 0);
-    const tax = draft.expenses.reduce((sum, item) => sum + item.taxCents, 0);
-    const spent = subtotal + tax;
+    const spent = draft.expenses.reduce((sum, item) => sum + item.amountCents, 0);
     const balance = draft.advanceCents - spent - draft.cashReturnedCents;
-    return { subtotal, tax, spent, balance };
+    return { spent, balance };
   }, [draft]);
   const hasConsignation = Boolean(activeId);
   const canEdit = Boolean(currentUser && (currentUser.role === "admin" || draft.ownerId === currentUser.id || !activeId));
@@ -231,7 +229,7 @@ export default function Home() {
     };
     for (const record of records) {
       const currency = coerceCurrency(record.currency);
-      const spent = record.expenses.reduce((sum, item) => sum + item.amountCents + item.taxCents, 0);
+      const spent = record.expenses.reduce((sum, item) => sum + item.amountCents, 0);
       stats[currency].requested += record.advanceCents;
       stats[currency].spent += spent;
       stats[currency].returned += record.cashReturnedCents;
@@ -241,20 +239,19 @@ export default function Home() {
     return [stats.COP, stats.USD];
   }, [records]);
   const reportRows = useMemo(() => {
-    const categories = new Map<string, { category: string; currency: CurrencyCode; count: number; amount: number; tax: number }>();
+    const categories = new Map<string, { category: string; currency: CurrencyCode; count: number; amount: number }>();
     for (const record of records) {
       const currency = coerceCurrency(record.currency);
       for (const expense of record.expenses) {
         const key = expense.category || "Sin categoria";
         const mapKey = `${currency}-${key}`;
-        const current = categories.get(mapKey) ?? { category: key, currency, count: 0, amount: 0, tax: 0 };
+        const current = categories.get(mapKey) ?? { category: key, currency, count: 0, amount: 0 };
         current.count += 1;
         current.amount += expense.amountCents;
-        current.tax += expense.taxCents;
         categories.set(mapKey, current);
       }
     }
-    return [...categories.values()].sort((left, right) => right.amount + right.tax - (left.amount + left.tax));
+    return [...categories.values()].sort((left, right) => right.amount - left.amount);
   }, [records]);
 
   useEffect(() => {
@@ -475,10 +472,7 @@ export default function Home() {
         : [
             "id,tipo,responsable,area,proyecto_o_objeto,codigo,referencia_consignacion,estado,moneda,consignado,gastado,devuelto,saldo",
             ...records.map((record) => {
-              const spent = record.expenses.reduce(
-                (sum, item) => sum + item.amountCents + item.taxCents,
-                0,
-              );
+              const spent = record.expenses.reduce((sum, item) => sum + item.amountCents, 0);
               const balance = record.advanceCents - spent - record.cashReturnedCents;
               return [
                 record.id,
@@ -540,7 +534,7 @@ export default function Home() {
       const pageHeight = doc.internal.pageSize.getHeight();
       const margin = 42;
       let y = margin;
-      const spent = saved.expenses.reduce((sum, item) => sum + item.amountCents + item.taxCents, 0);
+      const spent = saved.expenses.reduce((sum, item) => sum + item.amountCents, 0);
       const balance = saved.advanceCents - spent - saved.cashReturnedCents;
 
       const addLine = (label: string, value: string) => {
@@ -602,7 +596,7 @@ export default function Home() {
         ensureRoom(64);
         doc.setFont("helvetica", "bold");
         doc.text(`${index + 1}. ${expense.date} - ${expense.category}`, margin, y);
-        doc.text(formatMoney(expense.amountCents + expense.taxCents, saved.currency), pageWidth - margin - 90, y);
+        doc.text(formatMoney(expense.amountCents, saved.currency), pageWidth - margin - 90, y);
         y += 14;
         doc.setFont("helvetica", "normal");
         addWrapped(
@@ -1165,25 +1159,13 @@ export default function Home() {
                       />
                     </label>
                     <label>
-                      Base
+                      Valor
                       <input
                         inputMode="numeric"
                         readOnly={!canEdit}
                         value={expense.amountCents ? expense.amountCents / 100 : ""}
                         onChange={(event) =>
                           updateExpense(expense.id, { amountCents: parseMoney(event.target.value) })
-                        }
-                        placeholder="0"
-                      />
-                    </label>
-                    <label>
-                      IVA
-                      <input
-                        inputMode="numeric"
-                        readOnly={!canEdit}
-                        value={expense.taxCents ? expense.taxCents / 100 : ""}
-                        onChange={(event) =>
-                          updateExpense(expense.id, { taxCents: parseMoney(event.target.value) })
                         }
                         placeholder="0"
                       />
@@ -1262,10 +1244,6 @@ export default function Home() {
               </label>
             </div>
             <div className="calc-list">
-              <span>Subtotal</span>
-              <strong>{formatMoney(totals.subtotal, draft.currency)}</strong>
-              <span>IVA</span>
-              <strong>{formatMoney(totals.tax, draft.currency)}</strong>
               <span>Total gastado</span>
               <strong>{formatMoney(totals.spent, draft.currency)}</strong>
               <label>
@@ -1398,7 +1376,7 @@ export default function Home() {
                   <span>Soportes</span>
                 </div>
                 {records.map((record) => {
-                  const spent = record.expenses.reduce((sum, item) => sum + item.amountCents + item.taxCents, 0);
+                  const spent = record.expenses.reduce((sum, item) => sum + item.amountCents, 0);
                   const balance = record.advanceCents - spent - record.cashReturnedCents;
                   return (
                     <button
@@ -1458,8 +1436,6 @@ export default function Home() {
                       <span>Categoria</span>
                       <span>Moneda</span>
                       <span>Mov.</span>
-                      <span>Base</span>
-                      <span>IVA</span>
                       <span>Total</span>
                     </div>
                     {reportRows.map((row) => (
@@ -1467,9 +1443,7 @@ export default function Home() {
                         <span>{row.category}</span>
                         <span>{row.currency}</span>
                         <span>{row.count}</span>
-                        <span>{formatMoney(row.amount, row.currency)}</span>
-                        <span>{formatMoney(row.tax, row.currency)}</span>
-                        <strong>{formatMoney(row.amount + row.tax, row.currency)}</strong>
+                        <strong>{formatMoney(row.amount, row.currency)}</strong>
                       </div>
                     ))}
                   </div>
