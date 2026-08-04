@@ -833,7 +833,7 @@ export default function Home() {
             <div className="summary-grid">
               <Metric label="Total solicitado" value={formatMoney(dashboardStats.totalRequested)} />
               <Metric label="Total gastado" value={formatMoney(dashboardStats.totalSpent)} />
-              <Metric label="Pendientes OTTO" value={String(dashboardStats.pending)} tone={dashboardStats.pending ? "warn" : undefined} />
+              <Metric label="Pendientes Contabilidad / Gerencia" value={String(dashboardStats.pending)} tone={dashboardStats.pending ? "warn" : undefined} />
               <Metric label="Soportes cargados" value={String(dashboardStats.supportCount)} tone="ok" />
             </div>
 
@@ -880,7 +880,7 @@ export default function Home() {
           </div>
           <div className={`workflow-step ${draft.status === "pendiente aprobacion" ? "active" : ""}`}>
             <strong>2</strong>
-            <span>Aprobacion OTTO</span>
+            <span>Aprobacion Contabilidad / Gerencia</span>
           </div>
           <div className={`workflow-step ${["consignado", "registrando gastos", "aprobado"].includes(draft.status) ? "active" : ""}`}>
             <strong>3</strong>
@@ -1066,7 +1066,7 @@ export default function Home() {
             <div className="expense-list">
               {!hasConsignation && (
                 <div className="empty-state">
-                  Crea la solicitud y enviala a aprobacion. Los gastos se habilitan cuando OTTO marque la consignacion.
+                  Crea la solicitud y enviala a aprobacion. Los gastos se habilitan cuando Contabilidad / Gerencia marque la consignacion.
                 </div>
               )}
               {hasConsignation && !expensesEnabled && (

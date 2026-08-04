@@ -90,7 +90,7 @@ export async function notifyApprovalRequest(settlement: SettlementForMail, revie
   if (!recipients.length) {
     await logNotification(
       settlement.id,
-      "Notificacion de correo pendiente: los revisores tienen correos locales. Configura el correo real de OTTO en usuarios.",
+      "Notificacion de correo pendiente: los revisores tienen correos locales. Configura el correo real del revisor de Contabilidad / Gerencia en usuarios.",
     );
     return;
   }
