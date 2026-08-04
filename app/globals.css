@@ -490,8 +490,14 @@ label {
 .request-actions {
   border-top: 1px solid var(--line);
   grid-column: 1 / -1;
+  justify-content: center;
   margin-top: 4px;
   padding-top: 12px;
+}
+
+.request-actions button {
+  flex: 0 1 230px;
+  min-width: 190px;
 }
 
 .compact {
@@ -1205,6 +1211,10 @@ button.status-row:hover {
 
   .workflow-actions {
     flex-wrap: wrap;
+  }
+
+  .request-actions button {
+    flex-basis: min(100%, 230px);
   }
 
   .user-form {
