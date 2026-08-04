@@ -723,7 +723,7 @@ export default function Home() {
             />
           </label>
           <button className="save" type="submit">Entrar</button>
-          <p className="muted">Local: proyectos@uscom.net.co / andres123 · otto.urrea@uscom.net.co / otto123 · admin@local / admin123</p>
+          <p className="muted">Local: proyectos@uscom.net.co / andres123 · canales@uscom.net.co / otto123 · admin@local / admin123</p>
           {notice && <p className="notice">{notice}</p>}
         </form>
       </main>

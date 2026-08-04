@@ -29,7 +29,7 @@ Usuarios locales:
 proyectos@uscom.net.co / andres123
 defensa@uscom.net.co / william123
 analista@uscom.net.co / felipe123
-otto.urrea@uscom.net.co / otto123
+canales@uscom.net.co / otto123
 admin@local / admin123
 ```
 
@@ -50,7 +50,7 @@ Para pruebas con Resend sin dominio verificado, usar:
 MAIL_FROM=Legalizaciones USCOM <onboarding@resend.dev>
 ```
 
-Para enviar a `otto.urrea@uscom.net.co`, Resend exige verificar el dominio `uscom.net.co`.
+Durante pruebas, OTTO recibe en `canales@uscom.net.co`. Para produccion se puede volver a `otto.urrea@uscom.net.co`.
 
 ## Coolify
 
