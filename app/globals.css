@@ -568,7 +568,8 @@ label {
   padding-top: 12px;
 }
 
-.request-actions button {
+.request-actions button,
+.request-actions button.compact {
   flex: 0 0 220px;
   min-height: 42px;
   min-width: 220px;
