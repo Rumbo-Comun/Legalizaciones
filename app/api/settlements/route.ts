@@ -51,6 +51,24 @@ function cleanCurrencyCode(value: unknown) {
   return String(value || "COP").toUpperCase() === "USD" ? "USD" : "COP";
 }
 
+function settlementPrefix(fundType: string) {
+  const normalized = fundType.toLowerCase();
+  if (normalized.includes("viatico")) return "USC-VIA";
+  if (normalized.includes("proyecto")) return "USC-PRO";
+  return "USC-CM";
+}
+
+async function nextSettlementCode(fundType: string) {
+  const prefix = settlementPrefix(fundType);
+  const db = getDb();
+  const rows = await db.select({ fundCode: settlements.fundCode }).from(settlements);
+  const next = rows.reduce((max, row) => {
+    const match = row.fundCode.match(new RegExp(`^${prefix}-(\\d+)$`));
+    return match ? Math.max(max, Number(match[1])) : max;
+  }, 0) + 1;
+  return `${prefix}-${String(next).padStart(4, "0")}`;
+}
+
 function cleanExpense(expense: Partial<ExpensePayload>, settlementId: string): ExpensePayload {
   return {
     id: String(expense.id || crypto.randomUUID()),
@@ -149,13 +167,15 @@ export async function POST(request: Request) {
     const id = String(payload.id || crypto.randomUUID());
     const now = new Date().toISOString();
     const db = getDb();
+    const fundType = String(payload.fundType || "Caja menor");
+    const fundCode = await nextSettlementCode(fundType);
 
     await db.insert(settlements).values({
       id,
       employee: String(payload.employee || "").trim(),
       department: String(payload.department || ""),
-      fundCode: String(payload.fundCode || ""),
-      fundType: String(payload.fundType || "caja menor"),
+      fundCode,
+      fundType,
       projectName: String(payload.projectName || ""),
       depositDate: String(payload.depositDate || ""),
       depositReference: String(payload.depositReference || ""),

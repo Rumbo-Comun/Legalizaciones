@@ -648,7 +648,7 @@ export default function Home() {
       type === "json"
         ? JSON.stringify(records, null, 2)
         : [
-            "id,tipo,responsable,area,proyecto_o_objeto,codigo,referencia_consignacion,estado,moneda,consignado,gastado,reintegrado,devuelto,saldo",
+            "id,tipo,responsable,area,proyecto_o_objeto,id_solicitud,referencia_consignacion,estado,moneda,consignado,gastado,reintegrado,devuelto,saldo",
             ...records.map((record) => {
               const spent = sumSpent(record.expenses);
               const refunded = sumRefunded(record.expenses);
@@ -751,7 +751,7 @@ export default function Home() {
       addLine("Proyecto / objeto", saved.projectName);
       addLine("Responsable", saved.employee);
       addLine("Area", saved.department);
-      addLine("Codigo", saved.fundCode);
+      addLine("ID solicitud", saved.fundCode);
       addLine("Fecha consignacion", saved.depositDate);
       addLine("Referencia", saved.depositReference);
       addLine("Origen", saved.depositSource);
@@ -1188,7 +1188,6 @@ export default function Home() {
                   <option>Caja menor</option>
                   <option>Proyecto</option>
                   <option>Viaticos</option>
-                  <option>Otro fondo</option>
                 </select>
               </label>
               <label>
@@ -1219,12 +1218,11 @@ export default function Home() {
                 />
               </label>
               <label>
-                Codigo
+                ID solicitud
                 <input
                   value={draft.fundCode}
-                  readOnly={!canEdit}
-                  onChange={(event) => updateDraft("fundCode", event.target.value)}
-                  placeholder="CM-001, PR-042, VIA-007"
+                  readOnly
+                  placeholder="Se genera al crear la solicitud"
                 />
               </label>
               <label>

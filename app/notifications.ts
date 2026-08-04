@@ -109,7 +109,8 @@ export async function notifyApprovalRequest(settlement: SettlementForMail, revie
     return;
   }
 
-  const subject = `Nueva solicitud de consignacion: ${settlement.projectName || settlement.fundCode || settlement.fundType}`;
+  const requestId = settlement.fundCode || settlement.id;
+  const subject = `Nueva solicitud de consignacion: ${requestId}`;
   const html = `
     <div style="margin: 0; padding: 0; background: #f3f7fb; font-family: Arial, Helvetica, sans-serif; color: #111827;">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background: #f3f7fb; padding: 24px 12px;">
@@ -119,11 +120,10 @@ export async function notifyApprovalRequest(settlement: SettlementForMail, revie
               <tr>
                 <td style="background: #075eb8; color: #ffffff; padding: 24px 28px; text-align: center;">
                   <div style="background: #ffffff; border-radius: 6px; display: inline-block; margin: 0 0 14px; padding: 8px 14px;">
-                    <img src="${escapeHtml(logoUrl)}" width="190" alt="USCOM SAS" style="border: 0; display: block; height: auto; max-width: 190px;" />
+                    <img src="${escapeHtml(logoUrl)}" width="210" alt="USCOM SAS" style="border: 0; display: block; height: auto; max-width: 210px;" />
                   </div>
-                  <div style="font-size: 13px; font-weight: 800; letter-spacing: 0; text-transform: uppercase;">USCOM SAS</div>
-                  <h1 style="font-size: 24px; line-height: 1.25; margin: 8px 0 0;">Nueva solicitud de consignacion</h1>
-                  <p style="font-size: 14px; margin: 8px 0 0; opacity: 0.92;">${escapeHtml(settlement.projectName || settlement.fundCode || settlement.fundType)}</p>
+                  <h1 style="font-size: 24px; line-height: 1.25; margin: 0;">Nueva Solicitud de Consignaci&oacute;n</h1>
+                  <p style="font-size: 15px; font-weight: 800; margin: 10px 0 0; opacity: 0.94;">${escapeHtml(requestId)}</p>
                 </td>
               </tr>
               <tr>
@@ -136,7 +136,7 @@ export async function notifyApprovalRequest(settlement: SettlementForMail, revie
                     ${detailRow("Correo solicitante", requester?.email)}
                     ${detailRow("Tipo", settlement.fundType)}
                     ${detailRow("Proyecto / objeto", settlement.projectName)}
-                    ${detailRow("Codigo", settlement.fundCode)}
+                    ${detailRow("ID solicitud", requestId)}
                     ${detailRow("Valor solicitado", formatMoney(settlement.advanceCents, settlement.currency), true)}
                     ${detailRow("Estado", settlement.status)}
                   </table>
@@ -237,7 +237,7 @@ export async function notifyManagementSubmission(settlement: SettlementForMail, 
               ${detailRow("Correo solicitante", requester?.email)}
               ${detailRow("Tipo", settlement.fundType)}
               ${detailRow("Proyecto / objeto", settlement.projectName)}
-              ${detailRow("Codigo", settlement.fundCode)}
+              ${detailRow("ID solicitud", settlement.fundCode)}
               ${detailRow("Valor", formatMoney(settlement.advanceCents, settlement.currency), true)}
               ${detailRow("Estado", settlement.status)}
             </table>
@@ -328,7 +328,7 @@ export async function notifyTopUpRequest(
               ${detailRow("Correo solicitante", requester?.email)}
               ${detailRow("Tipo", settlement.fundType)}
               ${detailRow("Proyecto / objeto", settlement.projectName)}
-              ${detailRow("Codigo", settlement.fundCode)}
+              ${detailRow("ID solicitud", settlement.fundCode)}
               ${detailRow("Valor adicional", amount, true)}
               ${detailRow("Motivo", reason)}
               ${detailRow("Estado", settlement.status)}
