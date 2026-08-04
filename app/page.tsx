@@ -162,6 +162,7 @@ export default function Home() {
   const [notice, setNotice] = useState("");
   const [uploading, setUploading] = useState("");
   const [pdfBusy, setPdfBusy] = useState(false);
+  const [activeView, setActiveView] = useState<"dashboard" | "new" | "status" | "admin">("dashboard");
 
   const totals = useMemo(() => {
     const subtotal = draft.expenses.reduce((sum, item) => sum + item.amountCents, 0);
@@ -190,6 +191,20 @@ export default function Home() {
   const expensesEnabled = ["consignado", "registrando gastos", "aprobado", "solicitud ampliacion"].includes(
     draft.status,
   );
+  const dashboardStats = useMemo(() => {
+    const totalRequested = records.reduce((sum, record) => sum + record.advanceCents, 0);
+    const totalSpent = records.reduce(
+      (sum, record) => sum + record.expenses.reduce((expenseSum, item) => expenseSum + item.amountCents + item.taxCents, 0),
+      0,
+    );
+    const pending = records.filter((record) => record.status === "pendiente aprobacion").length;
+    const active = records.filter((record) =>
+      ["consignado", "registrando gastos", "solicitud ampliacion"].includes(record.status),
+    ).length;
+    const completed = records.filter((record) => record.status === "aprobado").length;
+    const supportCount = records.reduce((sum, record) => sum + record.evidences.length, 0);
+    return { totalRequested, totalSpent, pending, active, completed, supportCount };
+  }, [records]);
 
   useEffect(() => {
     void loadMe();
@@ -703,11 +718,57 @@ export default function Home() {
 
   return (
     <main className="app-shell">
-      <section className="workbench">
+      <aside className="crm-sidebar">
+        <div className="crm-brand">
+          <strong>USCOM SAS</strong>
+          <span>Legalizaciones</span>
+        </div>
+        <nav className="crm-nav" aria-label="Menu principal">
+          <button type="button" className={activeView === "dashboard" ? "active" : ""} onClick={() => setActiveView("dashboard")}>
+            <span>Resumen analitico</span>
+            <strong>{records.length}</strong>
+          </button>
+          <button
+            type="button"
+            className={activeView === "new" ? "active" : ""}
+            onClick={() => {
+              setDraft(emptySettlement());
+              setActiveId("");
+              setActiveView("new");
+            }}
+          >
+            <span>Solicitud nueva</span>
+            <strong>+</strong>
+          </button>
+          <button type="button" className={activeView === "status" ? "active" : ""} onClick={() => setActiveView("status")}>
+            <span>Estado actual</span>
+            <strong>{dashboardStats.pending}</strong>
+          </button>
+          {canAdmin && (
+            <button type="button" className={activeView === "admin" ? "active" : ""} onClick={() => setActiveView("admin")}>
+              <span>Administrador</span>
+              <strong>{users.length}</strong>
+            </button>
+          )}
+        </nav>
+        <div className="sidebar-summary">
+          <span>Solicitado</span>
+          <strong>{formatMoney(dashboardStats.totalRequested)}</strong>
+          <span>Gastado</span>
+          <strong>{formatMoney(dashboardStats.totalSpent)}</strong>
+        </div>
+      </aside>
+
+      <section className="workbench crm-content">
         <div className="topbar">
           <div>
             <p className="eyebrow">Fondos operativos</p>
-            <h1>Solicitudes y legalizaciones</h1>
+            <h1>
+              {activeView === "dashboard" && "Resumen analitico"}
+              {activeView === "new" && "Solicitud nueva"}
+              {activeView === "status" && "Estado actual"}
+              {activeView === "admin" && "Administrador"}
+            </h1>
           </div>
           <div className="actions">
             <span className="user-pill">{currentUser.name} · {currentUser.role}</span>
@@ -724,6 +785,7 @@ export default function Home() {
               onClick={() => {
                 setDraft(emptySettlement());
                 setActiveId("");
+                setActiveView("new");
               }}
             >
               +
@@ -732,16 +794,50 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="summary-grid">
-          <Metric label="Solicitado / consignado" value={formatMoney(draft.advanceCents)} />
-          <Metric label="Gastado" value={formatMoney(totals.spent)} />
-          <Metric label="Devuelto" value={formatMoney(draft.cashReturnedCents)} />
-          <Metric
-            label={totals.balance >= 0 ? "Disponible" : "Excedido"}
-            value={formatMoney(Math.abs(totals.balance))}
-            tone={totals.balance < 0 ? "warn" : "ok"}
-          />
-        </div>
+        {activeView === "dashboard" && (
+          <>
+            <div className="summary-grid">
+              <Metric label="Total solicitado" value={formatMoney(dashboardStats.totalRequested)} />
+              <Metric label="Total gastado" value={formatMoney(dashboardStats.totalSpent)} />
+              <Metric label="Pendientes OTTO" value={String(dashboardStats.pending)} tone={dashboardStats.pending ? "warn" : undefined} />
+              <Metric label="Soportes cargados" value={String(dashboardStats.supportCount)} tone="ok" />
+            </div>
+
+            <section className="panel crm-dashboard">
+              <div className="section-title">
+                <h2>Resumen por estado</h2>
+                <span>{records.length} solicitudes</span>
+              </div>
+              <div className="pipeline-grid">
+                <div>
+                  <span>En tramite</span>
+                  <strong>{dashboardStats.active}</strong>
+                </div>
+                <div>
+                  <span>Pendientes aprobacion</span>
+                  <strong>{dashboardStats.pending}</strong>
+                </div>
+                <div>
+                  <span>Aprobadas</span>
+                  <strong>{dashboardStats.completed}</strong>
+                </div>
+              </div>
+            </section>
+          </>
+        )}
+
+        {activeView === "new" && (
+          <>
+            <div className="summary-grid">
+              <Metric label="Solicitado / consignado" value={formatMoney(draft.advanceCents)} />
+              <Metric label="Gastado" value={formatMoney(totals.spent)} />
+              <Metric label="Devuelto" value={formatMoney(draft.cashReturnedCents)} />
+              <Metric
+                label={totals.balance >= 0 ? "Disponible" : "Excedido"}
+                value={formatMoney(Math.abs(totals.balance))}
+                tone={totals.balance < 0 ? "warn" : "ok"}
+              />
+            </div>
 
         <section className="workflow-panel">
           <div className={`workflow-step ${draft.status === "borrador" ? "active" : ""}`}>
@@ -1206,8 +1302,59 @@ export default function Home() {
             </div>
           </section>
         )}
+          </>
+        )}
 
-        {canAdmin && (
+        {activeView === "status" && (
+          <section className="panel status-board">
+            <div className="section-title">
+              <h2>Solicitudes del usuario</h2>
+              <span>{records.length} registros</span>
+            </div>
+            {loading && <p className="muted">Cargando...</p>}
+            {!loading && records.length === 0 && <div className="empty-state">Aun no hay solicitudes creadas.</div>}
+            {records.length > 0 && (
+              <div className="status-table">
+                <div className="status-row header">
+                  <span>Solicitud</span>
+                  <span>Estado</span>
+                  <span>Solicitado</span>
+                  <span>Gastado</span>
+                  <span>Disponible</span>
+                  <span>Soportes</span>
+                </div>
+                {records.map((record) => {
+                  const spent = record.expenses.reduce((sum, item) => sum + item.amountCents + item.taxCents, 0);
+                  const balance = record.advanceCents - spent - record.cashReturnedCents;
+                  return (
+                    <button
+                      type="button"
+                      className="status-row"
+                      key={record.id}
+                      onClick={() => {
+                        setDraft(record);
+                        setActiveId(record.id);
+                        setActiveView("new");
+                      }}
+                    >
+                      <span>
+                        <strong>{record.projectName || record.fundCode || record.fundType}</strong>
+                        <small>{record.employee || "Sin responsable"} · {record.fundType}</small>
+                      </span>
+                      <span className={`request-status ${record.status.replaceAll(" ", "-")}`}>{record.status}</span>
+                      <span>{formatMoney(record.advanceCents)}</span>
+                      <span>{formatMoney(spent)}</span>
+                      <span className={balance < 0 ? "negative" : "positive"}>{formatMoney(Math.abs(balance))}</span>
+                      <span>{record.evidences.length}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        )}
+
+        {activeView === "admin" && canAdmin && (
           <section className="panel user-admin">
             <button type="button" className="admin-toggle" onClick={() => setAdminOpen((open) => !open)} aria-expanded={adminOpen}>
               <span>
@@ -1291,42 +1438,6 @@ export default function Home() {
           </section>
         )}
       </section>
-
-      <aside className="history">
-        <div className="section-title">
-          <h2>Historial</h2>
-          <span>{records.length}</span>
-        </div>
-        {loading && <p className="muted">Cargando...</p>}
-        {!loading && records.length === 0 && <p className="muted">Aun no hay fondos creados.</p>}
-        {records.map((record) => {
-          const spent = record.expenses.reduce((sum, item) => sum + item.amountCents + item.taxCents, 0);
-          const balance = record.advanceCents - spent - record.cashReturnedCents;
-          return (
-            <article className="history-item" key={record.id}>
-              <button
-                type="button"
-                onClick={() => {
-                  setDraft(record);
-                  setActiveId(record.id);
-                }}
-              >
-                <strong>{record.employee || "Sin responsable"}</strong>
-                <span>{record.fundType} - {record.projectName || record.fundCode || "Sin objeto"}</span>
-                <span>{record.status}</span>
-                <span>{formatMoney(record.advanceCents)} consignado - {formatMoney(spent)} gastado</span>
-                <span>{record.evidences.length} soportes</span>
-              </button>
-              <div className="history-footer">
-                <span className={balance < 0 ? "negative" : "positive"}>{formatMoney(Math.abs(balance))}</span>
-                <button type="button" onClick={() => removeRecord(record.id)} title="Eliminar registro">
-                  x
-                </button>
-              </div>
-            </article>
-          );
-        })}
-      </aside>
     </main>
   );
 }

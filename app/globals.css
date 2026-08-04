@@ -107,7 +107,7 @@ label {
 .app-shell {
   display: grid;
   gap: 18px;
-  grid-template-columns: minmax(0, 1fr) 330px;
+  grid-template-columns: 260px minmax(0, 1fr);
   min-height: 100vh;
   padding: 22px;
 }
@@ -168,6 +168,121 @@ label {
   flex-direction: column;
   gap: 16px;
   min-width: 0;
+}
+
+.crm-sidebar {
+  align-self: start;
+  background: linear-gradient(180deg, #071f45, #0a356c 55%, #047462);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  color: #ffffff;
+  display: grid;
+  gap: 18px;
+  min-height: calc(100vh - 44px);
+  padding: 18px;
+  position: sticky;
+  top: 22px;
+}
+
+.crm-brand {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.16);
+  display: grid;
+  gap: 4px;
+  padding-bottom: 14px;
+}
+
+.crm-brand strong {
+  font-size: 1rem;
+}
+
+.crm-brand span,
+.sidebar-summary span {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.crm-nav {
+  display: grid;
+  gap: 8px;
+}
+
+.crm-nav button {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.86);
+  display: flex;
+  justify-content: space-between;
+  padding: 11px 12px;
+  text-align: left;
+}
+
+.crm-nav button.active {
+  background: #ffffff;
+  color: var(--blue-dark);
+}
+
+.crm-nav strong {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  font-size: 0.78rem;
+  min-width: 26px;
+  padding: 4px 6px;
+  text-align: center;
+}
+
+.crm-nav button.active strong {
+  background: var(--mint);
+  color: var(--teal-dark);
+}
+
+.sidebar-summary {
+  align-self: end;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+}
+
+.sidebar-summary strong {
+  color: #ffffff;
+}
+
+.crm-dashboard,
+.status-board {
+  display: grid;
+  gap: 16px;
+}
+
+.pipeline-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.pipeline-grid div {
+  background: #f8fbff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  min-height: 92px;
+  padding: 14px;
+}
+
+.pipeline-grid span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.pipeline-grid strong {
+  color: var(--ink);
+  font-size: 1.6rem;
 }
 
 .topbar,
@@ -743,6 +858,79 @@ label {
   color: var(--rose);
 }
 
+.status-table {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.status-row {
+  align-items: center;
+  background: var(--panel);
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(240px, 1.6fr) 170px repeat(4, minmax(110px, 1fr));
+  min-height: 58px;
+  padding: 12px 14px;
+  text-align: left;
+  width: 100%;
+}
+
+.status-row:first-child {
+  border-top: 0;
+}
+
+.status-row.header {
+  background: #eef6ff;
+  color: var(--blue-dark);
+  font-size: 0.75rem;
+  font-weight: 800;
+  min-height: 42px;
+  text-transform: uppercase;
+}
+
+button.status-row:hover {
+  background: #f8fbff;
+}
+
+.status-row strong {
+  color: var(--ink);
+}
+
+.status-row small {
+  color: var(--muted);
+  display: block;
+  font-size: 0.78rem;
+  margin-top: 3px;
+}
+
+.request-status {
+  background: var(--sky);
+  border-radius: 999px;
+  color: var(--blue-dark);
+  display: inline-flex;
+  font-size: 0.76rem;
+  font-weight: 800;
+  justify-self: start;
+  padding: 6px 9px;
+}
+
+.request-status.pendiente-aprobacion,
+.request-status.solicitud-ampliacion {
+  background: #fff4d8;
+  color: #86620c;
+}
+
+.request-status.consignado,
+.request-status.registrando-gastos,
+.request-status.aprobado {
+  background: var(--mint);
+  color: var(--teal-dark);
+}
+
 .history {
   align-self: start;
   max-height: calc(100vh - 44px);
@@ -794,6 +982,16 @@ label {
     grid-template-columns: 1fr;
   }
 
+  .crm-sidebar {
+    min-height: auto;
+    position: static;
+  }
+
+  .crm-nav,
+  .pipeline-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .workflow-actions {
     flex-wrap: wrap;
   }
@@ -821,6 +1019,15 @@ label {
 
   .expense-row {
     grid-template-columns: 34px repeat(4, minmax(130px, 1fr));
+  }
+
+  .status-row {
+    grid-template-columns: minmax(220px, 1fr) 150px repeat(2, minmax(100px, 1fr));
+  }
+
+  .status-row span:nth-child(5),
+  .status-row span:nth-child(6) {
+    display: none;
   }
 
   .wide,
@@ -883,11 +1090,18 @@ label {
   }
 
   .admin-stat-grid,
-  .user-table-row {
+  .user-table-row,
+  .status-row {
     grid-template-columns: 1fr;
   }
 
-  .user-table-row.header {
+  .user-table-row.header,
+  .status-row.header {
     display: none;
+  }
+
+  .crm-nav,
+  .pipeline-grid {
+    grid-template-columns: 1fr;
   }
 }
