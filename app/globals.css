@@ -1083,7 +1083,7 @@ label {
   border-radius: 0;
   display: grid;
   gap: 12px;
-  grid-template-columns: minmax(240px, 1.6fr) 170px repeat(4, minmax(110px, 1fr));
+  grid-template-columns: minmax(220px, 1.3fr) 160px repeat(4, minmax(96px, 0.7fr)) minmax(260px, 1.2fr);
   min-height: 58px;
   padding: 12px 14px;
   text-align: left;
@@ -1103,7 +1103,7 @@ label {
   text-transform: uppercase;
 }
 
-button.status-row:hover {
+.status-row:not(.header):hover {
   background: #f8fbff;
 }
 
@@ -1116,6 +1116,49 @@ button.status-row:hover {
   display: block;
   font-size: 0.78rem;
   margin-top: 3px;
+}
+
+.row-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.mini-action {
+  align-items: center;
+  background: var(--sky);
+  border: 1px solid rgba(10, 79, 179, 0.22);
+  border-radius: 6px;
+  color: var(--blue-dark);
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 0.76rem;
+  font-weight: 800;
+  justify-content: center;
+  min-height: 32px;
+  padding: 0 10px;
+  white-space: nowrap;
+}
+
+.mini-action:hover {
+  border-color: var(--blue);
+}
+
+.mini-action:disabled,
+.mini-action.disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.primary-action {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: #ffffff;
+}
+
+.upload-action input {
+  display: none;
 }
 
 .request-status {
@@ -1137,7 +1180,8 @@ button.status-row:hover {
 
 .request-status.consignado,
 .request-status.registrando-gastos,
-.request-status.aprobado {
+.request-status.aprobado,
+.request-status.enviado-gerencia {
   background: var(--mint);
   color: var(--teal-dark);
 }
@@ -1221,6 +1265,68 @@ button.status-row:hover {
 .report-side strong {
   color: var(--ink);
   font-size: 1.35rem;
+}
+
+.modal-backdrop {
+  align-items: center;
+  background: rgba(6, 29, 66, 0.46);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 18px;
+  position: fixed;
+  z-index: 30;
+}
+
+.confirm-modal {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  color: var(--foreground);
+  display: grid;
+  gap: 14px;
+  max-width: 460px;
+  padding: 20px;
+  width: min(100%, 460px);
+}
+
+.confirm-modal h2,
+.confirm-modal p {
+  margin: 0;
+}
+
+.confirm-modal h2 {
+  color: var(--ink);
+  font-size: 1.25rem;
+}
+
+.confirm-modal p {
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.modal-summary {
+  background: #f8fbff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+}
+
+.modal-summary span {
+  color: var(--muted);
+}
+
+.modal-summary strong {
+  color: var(--ink);
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
 }
 
 .history {
@@ -1319,7 +1425,7 @@ button.status-row:hover {
   }
 
   .status-row {
-    grid-template-columns: minmax(220px, 1fr) 150px repeat(2, minmax(100px, 1fr));
+    grid-template-columns: minmax(220px, 1fr) 150px repeat(2, minmax(100px, 1fr)) minmax(240px, 1fr);
   }
 
   .report-grid {

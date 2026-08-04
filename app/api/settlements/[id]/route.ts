@@ -3,7 +3,7 @@ import { getDb } from "../../../../db";
 import { evidences, expenses, settlementAccess, settlements } from "../../../../db/schema";
 import { assignReviewers, cleanCurrency, cleanCurrencyCode, cleanExpense, hydrateSettlement } from "../route";
 import { requireUser } from "../../../auth";
-import { notifyApprovalRequest } from "../../../notifications";
+import { notifyApprovalRequest, notifyManagementSubmission } from "../../../notifications";
 import { deleteEvidenceFile } from "../../../storage";
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -51,6 +51,11 @@ export async function PUT(request: Request, context: RouteContext) {
         const [settlement] = await db.select().from(settlements).where(eq(settlements.id, id));
         if (settlement) await notifyApprovalRequest(settlement, reviewerRows, user);
       }
+    }
+    if (nextStatus === "enviado gerencia" && current.status !== nextStatus) {
+      const reviewerRows = await assignReviewers(id);
+      const [settlement] = await db.select().from(settlements).where(eq(settlements.id, id));
+      if (settlement) await notifyManagementSubmission(settlement, reviewerRows, user);
     }
 
     const currentExpenses = await db.select().from(expenses).where(eq(expenses.settlementId, id));

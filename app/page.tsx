@@ -185,6 +185,7 @@ export default function Home() {
   const [uploading, setUploading] = useState("");
   const [pdfBusy, setPdfBusy] = useState(false);
   const [activeView, setActiveView] = useState<"dashboard" | "new" | "status" | "reports" | "admin">("dashboard");
+  const [managementTarget, setManagementTarget] = useState<Settlement | null>(null);
 
   const totals = useMemo(() => {
     const spent = draft.expenses.reduce((sum, item) => sum + item.amountCents, 0);
@@ -192,7 +193,8 @@ export default function Home() {
     return { spent, balance };
   }, [draft]);
   const hasConsignation = Boolean(activeId);
-  const canEdit = Boolean(currentUser && (currentUser.role === "admin" || draft.ownerId === currentUser.id || !activeId));
+  const draftClosed = draft.status === "enviado gerencia";
+  const canEdit = Boolean(currentUser && !draftClosed && (currentUser.role === "admin" || draft.ownerId === currentUser.id || !activeId));
   const canReviewFund = Boolean(
     currentUser &&
       (currentUser.role === "admin" ||
@@ -200,8 +202,8 @@ export default function Home() {
   );
   const isOttoUser = Boolean(currentUser?.name.toUpperCase().includes("OTTO"));
   const canApproveConsignation = canReviewFund && isOttoUser;
-  const canAttachSupport = canEdit || canReviewFund;
-  const canSave = canEdit || canReviewFund;
+  const canAttachSupport = !draftClosed && (canEdit || canReviewFund);
+  const canSave = !draftClosed && (canEdit || canReviewFund);
   const canAdmin = currentUser?.role === "admin";
   const adminStats = useMemo(() => {
     const activeUsers = users.filter((user) => user.active !== 0).length;
@@ -336,6 +338,23 @@ export default function Home() {
     }));
   }
 
+  function canActOnRecord(record: Settlement) {
+    return Boolean(
+      currentUser &&
+        record.status !== "enviado gerencia" &&
+        (currentUser.role === "admin" ||
+          record.ownerId === currentUser.id ||
+          (record.access ?? []).some((access) => access.userId === currentUser.id)),
+    );
+  }
+
+  function openRecord(record: Settlement, message?: string) {
+    setDraft(normalizeSettlement(record));
+    setActiveId(record.id);
+    setActiveView("new");
+    if (message) setNotice(message);
+  }
+
   async function saveSettlement(event?: FormEvent, override: Partial<Settlement> = {}) {
     event?.preventDefault();
     if (!canSave) {
@@ -418,6 +437,60 @@ export default function Home() {
       }));
       await loadRecords();
     }
+  }
+
+  async function uploadRecordSupport(record: Settlement, event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file || !canActOnRecord(record)) return;
+
+    const form = new FormData();
+    form.append("settlementId", record.id);
+    form.append("file", file);
+
+    setUploading(record.id);
+    const response = await fetch("/api/evidences", { method: "POST", body: form });
+    const data = await response.json();
+    setUploading("");
+
+    if (!response.ok) {
+      setNotice(data.error ?? "No se pudo cargar el soporte.");
+      return;
+    }
+
+    const nextSettlement = normalizeSettlement(data.settlement);
+    setDraft(nextSettlement);
+    setActiveId(nextSettlement.id);
+    setNotice("Soporte cargado correctamente.");
+    await loadRecords();
+  }
+
+  async function sendToManagement(record: Settlement) {
+    if (!canActOnRecord(record)) return;
+    const closedRecord = { ...normalizeSettlement(record), status: "enviado gerencia" };
+    const response = await fetch(`/api/settlements/${record.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(closedRecord),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      setNotice(data.error ?? "No se pudo enviar a gerencia.");
+      return;
+    }
+
+    await fetch(`/api/settlements/${record.id}/comments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ comment: "Solicitud enviada a gerencia. Se cierra la carga de soportes y novedades de gastos." }),
+    });
+
+    const nextSettlement = normalizeSettlement(data.settlement);
+    setDraft(nextSettlement);
+    setActiveId(nextSettlement.id);
+    setManagementTarget(null);
+    setNotice("Solicitud enviada a gerencia y cerrada para nuevos soportes.");
+    await loadRecords();
   }
 
   async function submitForApproval() {
@@ -1374,20 +1447,17 @@ export default function Home() {
                   <span>Gastado</span>
                   <span>Disponible</span>
                   <span>Soportes</span>
+                  <span>Acciones</span>
                 </div>
                 {records.map((record) => {
                   const spent = record.expenses.reduce((sum, item) => sum + item.amountCents, 0);
                   const balance = record.advanceCents - spent - record.cashReturnedCents;
+                  const recordClosed = record.status === "enviado gerencia";
+                  const canUseActions = canActOnRecord(record);
                   return (
-                    <button
-                      type="button"
+                    <article
                       className="status-row"
                       key={record.id}
-                      onClick={() => {
-                        setDraft(normalizeSettlement(record));
-                        setActiveId(record.id);
-                        setActiveView("new");
-                      }}
                     >
                       <span>
                         <strong>{record.projectName || record.fundCode || record.fundType}</strong>
@@ -1398,7 +1468,33 @@ export default function Home() {
                       <span>{formatMoney(spent, record.currency)}</span>
                       <span className={balance < 0 ? "negative" : "positive"}>{formatMoney(Math.abs(balance), record.currency)}</span>
                       <span>{record.evidences.length}</span>
-                    </button>
+                      <span className="row-actions">
+                        <label className={`mini-action upload-action ${!canUseActions ? "disabled" : ""}`}>
+                          {uploading === record.id ? "Subiendo..." : "Subir soporte"}
+                          <input
+                            type="file"
+                            accept="image/*,.pdf"
+                            disabled={!canUseActions}
+                            onChange={(event) => uploadRecordSupport(record, event)}
+                          />
+                        </label>
+                        <button
+                          type="button"
+                          className="mini-action"
+                          onClick={() => openRecord(record, "Actividad abierta para revision.")}
+                        >
+                          Ver actividad
+                        </button>
+                        <button
+                          type="button"
+                          className="mini-action primary-action"
+                          disabled={!canUseActions || recordClosed}
+                          onClick={() => setManagementTarget(normalizeSettlement(record))}
+                        >
+                          Enviar a gerencia
+                        </button>
+                      </span>
+                    </article>
                   );
                 })}
               </div>
@@ -1550,6 +1646,28 @@ export default function Home() {
               </div>
             )}
           </section>
+        )}
+        {managementTarget && (
+          <div className="modal-backdrop" role="presentation">
+            <section className="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="management-confirm-title">
+              <h2 id="management-confirm-title">Enviar a gerencia</h2>
+              <p>
+                Advertencia: si envia esta solicitud a gerencia se cerrara la actividad y no podra subir mas soportes ni registrar nuevos gastos.
+              </p>
+              <div className="modal-summary">
+                <span>{managementTarget.projectName || managementTarget.fundCode || managementTarget.fundType}</span>
+                <strong>{formatMoney(managementTarget.advanceCents, managementTarget.currency)}</strong>
+              </div>
+              <div className="modal-actions">
+                <button type="button" className="ghost" onClick={() => setManagementTarget(null)}>
+                  Cancelar
+                </button>
+                <button type="button" className="save" onClick={() => void sendToManagement(managementTarget)}>
+                  Confirmar envio
+                </button>
+              </div>
+            </section>
+          </div>
         )}
       </section>
     </main>
