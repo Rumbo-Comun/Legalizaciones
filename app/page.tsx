@@ -813,24 +813,6 @@ export default function Home() {
           </div>
           <div className="actions">
             <span className="user-pill">{currentUser.name} · {currentUser.role}</span>
-            <button type="button" onClick={() => exportFile("csv")} title="Exportar CSV">
-              CSV
-            </button>
-            <button type="button" onClick={() => exportFile("json")} title="Exportar JSON">
-              JSON
-            </button>
-            <button
-              type="button"
-              className="primary"
-              disabled={!canEdit}
-              onClick={() => {
-                setDraft(emptySettlement());
-                setActiveId("");
-                setActiveView("new");
-              }}
-            >
-              +
-            </button>
             <button type="button" onClick={logout}>Salir</button>
           </div>
         </div>
