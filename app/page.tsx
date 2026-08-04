@@ -180,6 +180,13 @@ export default function Home() {
   const canAttachSupport = canEdit || canReviewFund;
   const canSave = canEdit || canReviewFund;
   const canAdmin = currentUser?.role === "admin";
+  const adminStats = useMemo(() => {
+    const activeUsers = users.filter((user) => user.active !== 0).length;
+    const requesters = users.filter((user) => user.role === "solicitante").length;
+    const reviewers = users.filter((user) => user.role === "revisor").length;
+    const admins = users.filter((user) => user.role === "admin").length;
+    return { activeUsers, requesters, reviewers, admins };
+  }, [users]);
   const expensesEnabled = ["consignado", "registrando gastos", "aprobado", "solicitud ampliacion"].includes(
     draft.status,
   );
@@ -1202,34 +1209,84 @@ export default function Home() {
 
         {canAdmin && (
           <section className="panel user-admin">
-            <button type="button" className="admin-toggle" onClick={() => setAdminOpen((open) => !open)}>
-              <span>Administracion de usuarios</span>
-              <strong>{users.length}</strong>
+            <button type="button" className="admin-toggle" onClick={() => setAdminOpen((open) => !open)} aria-expanded={adminOpen}>
+              <span>
+                <strong>Administracion de usuarios</strong>
+                <small>Control de accesos, roles y credenciales temporales</small>
+              </span>
+              <b>{adminOpen ? "Cerrar" : "Gestionar"}</b>
             </button>
             {adminOpen && (
-              <form className="user-form" onSubmit={saveUser}>
-                <label>
-                  Nombre
-                  <input value={newUser.name} onChange={(event) => setNewUser({ ...newUser, name: event.target.value })} />
-                </label>
-                <label>
-                  Correo / usuario
-                  <input value={newUser.email} onChange={(event) => setNewUser({ ...newUser, email: event.target.value })} />
-                </label>
-                <label>
-                  Rol
-                  <select value={newUser.role} onChange={(event) => setNewUser({ ...newUser, role: event.target.value })}>
-                    <option value="solicitante">Solicitante</option>
-                    <option value="revisor">Revisor / aprobador</option>
-                    <option value="admin">Admin</option>
-                  </select>
-                </label>
-                <label>
-                  Clave temporal
-                  <input value={newUser.password} onChange={(event) => setNewUser({ ...newUser, password: event.target.value })} />
-                </label>
-                <button className="save" type="submit">Guardar usuario</button>
-              </form>
+              <div className="admin-workspace">
+                <div className="admin-stat-grid">
+                  <div>
+                    <span>Activos</span>
+                    <strong>{adminStats.activeUsers}</strong>
+                  </div>
+                  <div>
+                    <span>Solicitantes</span>
+                    <strong>{adminStats.requesters}</strong>
+                  </div>
+                  <div>
+                    <span>Revisores</span>
+                    <strong>{adminStats.reviewers}</strong>
+                  </div>
+                  <div>
+                    <span>Admins</span>
+                    <strong>{adminStats.admins}</strong>
+                  </div>
+                </div>
+
+                <form className="user-form" onSubmit={saveUser}>
+                  <div className="admin-form-title">
+                    <strong>Nuevo usuario o actualizacion</strong>
+                    <span>Si el correo ya existe, se actualiza rol y clave temporal.</span>
+                  </div>
+                  <label>
+                    Nombre
+                    <input value={newUser.name} onChange={(event) => setNewUser({ ...newUser, name: event.target.value })} />
+                  </label>
+                  <label>
+                    Correo / usuario
+                    <input value={newUser.email} onChange={(event) => setNewUser({ ...newUser, email: event.target.value })} />
+                  </label>
+                  <label>
+                    Rol
+                    <select value={newUser.role} onChange={(event) => setNewUser({ ...newUser, role: event.target.value })}>
+                      <option value="solicitante">Solicitante</option>
+                      <option value="revisor">Revisor / aprobador</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  </label>
+                  <label>
+                    Clave temporal
+                    <input value={newUser.password} onChange={(event) => setNewUser({ ...newUser, password: event.target.value })} />
+                  </label>
+                  <button className="save" type="submit">Guardar usuario</button>
+                </form>
+
+                <div className="user-table" role="table" aria-label="Usuarios autorizados">
+                  <div className="user-table-row header" role="row">
+                    <span role="columnheader">Usuario</span>
+                    <span role="columnheader">Rol</span>
+                    <span role="columnheader">Estado</span>
+                  </div>
+                  {users.map((user) => (
+                    <div className="user-table-row" role="row" key={user.id}>
+                      <span role="cell">
+                        <strong>{user.name}</strong>
+                        <small>{user.email}</small>
+                      </span>
+                      <span role="cell" className={`role-badge ${user.role}`}>
+                        {user.role === "admin" ? "Administrador" : user.role === "revisor" ? "Revisor" : "Solicitante"}
+                      </span>
+                      <span role="cell" className={user.active === 0 ? "status-badge off" : "status-badge"}>
+                        {user.active === 0 ? "Inactivo" : "Activo"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
           </section>
         )}
