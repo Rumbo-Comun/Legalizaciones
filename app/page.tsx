@@ -192,6 +192,8 @@ export default function Home() {
       (currentUser.role === "admin" ||
         (currentUser.role === "revisor" && (draft.access ?? []).some((access) => access.userId === currentUser.id))),
   );
+  const isOttoUser = Boolean(currentUser?.name.toUpperCase().includes("OTTO"));
+  const canApproveConsignation = canReviewFund && isOttoUser;
   const canAttachSupport = canEdit || canReviewFund;
   const canSave = canEdit || canReviewFund;
   const canAdmin = currentUser?.role === "admin";
@@ -879,17 +881,6 @@ export default function Home() {
             <strong>4</strong>
             <span>Ampliacion</span>
           </div>
-          <div className="workflow-actions">
-            <button type="button" className="ghost" disabled={!canEdit} onClick={() => void saveSettlement()}>
-              Guardar borrador
-            </button>
-            <button type="button" className="save compact" disabled={!canEdit} onClick={submitForApproval}>
-              Enviar a aprobacion
-            </button>
-            <button type="button" className="pdf-button compact" disabled={!canReviewFund || !activeId} onClick={approveConsignation}>
-              Aprobar consignacion
-            </button>
-          </div>
         </section>
 
         <form className="editor" onSubmit={saveSettlement}>
@@ -1015,6 +1006,19 @@ export default function Home() {
                 placeholder="Notas de revision, aprobacion o pendientes"
               />
             </label>
+            <div className="workflow-actions request-actions">
+              <button type="button" className="ghost" disabled={!canEdit} onClick={() => void saveSettlement()}>
+                Guardar borrador
+              </button>
+              <button type="button" className="save compact" disabled={!canEdit} onClick={submitForApproval}>
+                Enviar a aprobacion
+              </button>
+              {canApproveConsignation && (
+                <button type="button" className="pdf-button compact" disabled={!activeId} onClick={approveConsignation}>
+                  Aprobar consignacion
+                </button>
+              )}
+            </div>
           </section>
 
           <section className="panel expense-panel">
@@ -1235,9 +1239,6 @@ export default function Home() {
               </strong>
             </div>
 
-            <button type="submit" className="save" disabled={!canSave}>
-              {hasConsignation ? "Guardar cambios" : "Crear solicitud"}
-            </button>
             <button
               type="button"
               className="pdf-button"

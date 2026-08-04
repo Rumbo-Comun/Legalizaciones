@@ -413,7 +413,7 @@ label {
   box-shadow: var(--shadow);
   display: grid;
   gap: 10px;
-  grid-template-columns: repeat(4, minmax(120px, 1fr)) auto;
+  grid-template-columns: repeat(4, minmax(120px, 1fr));
   padding: 12px;
 }
 
@@ -453,11 +453,19 @@ label {
 .workflow-actions {
   display: flex;
   gap: 8px;
+  justify-content: flex-end;
 }
 
 .workflow-actions button {
   flex: 1;
   min-width: 165px;
+}
+
+.request-actions {
+  border-top: 1px solid var(--line);
+  grid-column: 1 / -1;
+  margin-top: 4px;
+  padding-top: 12px;
 }
 
 .compact {
