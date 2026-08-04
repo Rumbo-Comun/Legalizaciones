@@ -651,18 +651,26 @@ label {
 }
 
 .details-panel,
-.expense-panel,
-.review-panel,
 .user-admin {
+  grid-column: 1 / -1;
+}
+
+.expense-panel {
   grid-column: 1;
+  grid-row: 2;
 }
 
 .balance-panel {
   align-self: start;
   grid-column: 2;
-  grid-row: 1 / span 2;
+  grid-row: 2;
   position: sticky;
   top: 20px;
+}
+
+.review-panel {
+  grid-column: 1 / -1;
+  grid-row: 3;
 }
 
 .section-title h2 {
@@ -1493,11 +1501,18 @@ label {
   }
 
   .history,
+  .details-panel,
+  .expense-panel,
   .balance-panel {
     grid-column: auto;
     grid-row: auto;
     max-height: none;
     position: static;
+  }
+
+  .review-panel {
+    grid-column: auto;
+    grid-row: auto;
   }
 
   .expense-row {
