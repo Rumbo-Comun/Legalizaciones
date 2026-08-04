@@ -246,10 +246,13 @@ label {
 }
 
 .crm-brand {
+  align-items: center;
   border-bottom: 1px solid rgba(255, 255, 255, 0.16);
   display: grid;
-  gap: 6px;
+  gap: 8px;
+  justify-items: center;
   padding-bottom: 14px;
+  text-align: center;
 }
 
 .crm-brand img {
@@ -257,15 +260,16 @@ label {
   border-radius: 8px;
   display: block;
   height: auto;
-  max-width: 185px;
+  max-width: 170px;
   padding: 8px;
   width: 100%;
 }
 
 .crm-brand strong {
   color: #ffffff;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   line-height: 1.25;
+  max-width: 190px;
 }
 
 .crm-brand span,
