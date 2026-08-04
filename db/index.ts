@@ -61,6 +61,7 @@ function initializeSchema(database: DatabaseSync) {
       period_end text DEFAULT '' NOT NULL,
       status text DEFAULT 'borrador' NOT NULL,
       owner_id text REFERENCES users(id) ON DELETE set null,
+      currency text DEFAULT 'COP' NOT NULL,
       advance_cents integer DEFAULT 0 NOT NULL,
       cash_returned_cents integer DEFAULT 0 NOT NULL,
       notes text DEFAULT '' NOT NULL,
@@ -116,6 +117,7 @@ function initializeSchema(database: DatabaseSync) {
   ensureColumn("settlements", "deposit_reference", "`deposit_reference` text DEFAULT '' NOT NULL");
   ensureColumn("settlements", "deposit_source", "`deposit_source` text DEFAULT '' NOT NULL");
   ensureColumn("settlements", "owner_id", "`owner_id` text REFERENCES users(id) ON DELETE set null");
+  ensureColumn("settlements", "currency", "`currency` text DEFAULT 'COP' NOT NULL");
 }
 
 function getSqlite() {

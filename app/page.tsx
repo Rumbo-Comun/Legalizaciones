@@ -63,6 +63,7 @@ type Settlement = {
   periodStart: string;
   periodEnd: string;
   status: string;
+  currency: "COP" | "USD";
   advanceCents: number;
   cashReturnedCents: number;
   notes: string;
@@ -99,6 +100,7 @@ const emptySettlement = (): Settlement => ({
   periodStart: "",
   periodEnd: "",
   status: "borrador",
+  currency: "COP",
   advanceCents: 0,
   cashReturnedCents: 0,
   notes: "",
@@ -106,19 +108,23 @@ const emptySettlement = (): Settlement => ({
   evidences: [],
 });
 
-const money = new Intl.NumberFormat("es-CO", {
-  style: "currency",
-  currency: "COP",
-  maximumFractionDigits: 0,
-});
-
 function parseMoney(value: string) {
   const numeric = Number(value.replace(/[^\d.-]/g, ""));
   return Number.isFinite(numeric) ? Math.round(numeric * 100) : 0;
 }
 
-function formatMoney(cents: number) {
-  return money.format(Math.round(cents / 100));
+function formatMoney(cents: number, currency: "COP" | "USD" = "COP") {
+  return `${currency} ${new Intl.NumberFormat("es-CO", {
+    maximumFractionDigits: 0,
+  }).format(Math.round(cents / 100))}`;
+}
+
+function coerceCurrency(value: unknown): "COP" | "USD" {
+  return String(value || "COP").toUpperCase() === "USD" ? "USD" : "COP";
+}
+
+function normalizeSettlement(record: Settlement): Settlement {
+  return { ...record, currency: coerceCurrency(record.currency) };
 }
 
 function parseUtcTimestamp(value: string) {
@@ -294,7 +300,7 @@ export default function Home() {
         return [];
       }
       const data = await response.json();
-      const nextRecords = data.settlements ?? [];
+      const nextRecords = (data.settlements ?? []).map((record: Settlement) => normalizeSettlement(record));
       setRecords(nextRecords);
       return nextRecords as Settlement[];
     } catch {
@@ -348,11 +354,12 @@ export default function Home() {
       return null;
     }
 
-    setDraft(data.settlement);
-    setActiveId(data.settlement.id);
+    const savedSettlement = normalizeSettlement(data.settlement);
+    setDraft(savedSettlement);
+    setActiveId(savedSettlement.id);
     setNotice(activeId ? "Movimiento guardado correctamente." : "Solicitud creada.");
     await loadRecords();
-    return data.settlement as Settlement;
+    return savedSettlement;
   }
 
   async function uploadEvidence(event: ChangeEvent<HTMLInputElement>, expenseId: string | null) {
@@ -382,8 +389,9 @@ export default function Home() {
       return;
     }
 
-    setDraft(data.settlement);
-    setActiveId(data.settlement.id);
+    const nextSettlement = normalizeSettlement(data.settlement);
+    setDraft(nextSettlement);
+    setActiveId(nextSettlement.id);
     setNotice("Evidencia cargada y asociada.");
     await loadRecords();
   }
@@ -421,7 +429,7 @@ export default function Home() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        comment: `Solicitud de ampliacion de fondos por ${formatMoney(amount)}. Motivo: ${reason}`,
+        comment: `Solicitud de ampliacion de fondos por ${formatMoney(amount, draft.currency)}. Motivo: ${reason}`,
       }),
     });
     if (!response.ok) {
@@ -450,7 +458,7 @@ export default function Home() {
       type === "json"
         ? JSON.stringify(records, null, 2)
         : [
-            "id,tipo,responsable,area,proyecto_o_objeto,codigo,referencia_consignacion,estado,consignado,gastado,devuelto,saldo",
+            "id,tipo,responsable,area,proyecto_o_objeto,codigo,referencia_consignacion,estado,moneda,consignado,gastado,devuelto,saldo",
             ...records.map((record) => {
               const spent = record.expenses.reduce(
                 (sum, item) => sum + item.amountCents + item.taxCents,
@@ -466,6 +474,7 @@ export default function Home() {
                 record.fundCode,
                 record.depositReference,
                 record.status,
+                record.currency,
                 record.advanceCents / 100,
                 spent / 100,
                 record.cashReturnedCents / 100,
@@ -558,10 +567,10 @@ export default function Home() {
       addLine("Origen", saved.depositSource);
       addLine("Estado", saved.status);
       y += 10;
-      addLine("Consignado", formatMoney(saved.advanceCents));
-      addLine("Gastado", formatMoney(spent));
-      addLine("Devuelto", formatMoney(saved.cashReturnedCents));
-      addLine(balance < 0 ? "Excedido" : "Disponible", formatMoney(Math.abs(balance)));
+      addLine("Consignado", formatMoney(saved.advanceCents, saved.currency));
+      addLine("Gastado", formatMoney(spent, saved.currency));
+      addLine("Devuelto", formatMoney(saved.cashReturnedCents, saved.currency));
+      addLine(balance < 0 ? "Excedido" : "Disponible", formatMoney(Math.abs(balance), saved.currency));
 
       y += 16;
       doc.setFont("helvetica", "bold");
@@ -578,7 +587,7 @@ export default function Home() {
         ensureRoom(64);
         doc.setFont("helvetica", "bold");
         doc.text(`${index + 1}. ${expense.date} - ${expense.category}`, margin, y);
-        doc.text(formatMoney(expense.amountCents + expense.taxCents), pageWidth - margin - 90, y);
+        doc.text(formatMoney(expense.amountCents + expense.taxCents, saved.currency), pageWidth - margin - 90, y);
         y += 14;
         doc.setFont("helvetica", "normal");
         addWrapped(
@@ -694,7 +703,7 @@ export default function Home() {
     setNotice("Acceso asignado.");
     const nextRecords = await loadRecords();
     const refreshed = nextRecords.find((record) => record.id === activeId);
-    if (refreshed) setDraft(refreshed);
+    if (refreshed) setDraft(normalizeSettlement(refreshed));
   }
 
   async function addComment() {
@@ -713,7 +722,7 @@ export default function Home() {
     setNotice("Observacion guardada.");
     const nextRecords = await loadRecords();
     const refreshed = nextRecords.find((record) => record.id === activeId);
-    if (refreshed) setDraft(refreshed);
+    if (refreshed) setDraft(normalizeSettlement(refreshed));
   }
 
   if (!authChecked) {
@@ -854,12 +863,12 @@ export default function Home() {
         {activeView === "new" && (
           <>
             <div className="summary-grid">
-              <Metric label="Solicitado / consignado" value={formatMoney(draft.advanceCents)} />
-              <Metric label="Gastado" value={formatMoney(totals.spent)} />
-              <Metric label="Devuelto" value={formatMoney(draft.cashReturnedCents)} />
+              <Metric label="Solicitado / consignado" value={formatMoney(draft.advanceCents, draft.currency)} />
+              <Metric label="Gastado" value={formatMoney(totals.spent, draft.currency)} />
+              <Metric label="Devuelto" value={formatMoney(draft.cashReturnedCents, draft.currency)} />
               <Metric
                 label={totals.balance >= 0 ? "Disponible" : "Excedido"}
-                value={formatMoney(Math.abs(totals.balance))}
+                value={formatMoney(Math.abs(totals.balance), draft.currency)}
                 tone={totals.balance < 0 ? "warn" : "ok"}
               />
             </div>
@@ -942,13 +951,24 @@ export default function Home() {
               </label>
               <label>
                 Valor solicitado / consignado
-                <input
-                  inputMode="numeric"
-                  readOnly={!canSave}
-                  value={draft.advanceCents ? draft.advanceCents / 100 : ""}
-                  onChange={(event) => updateDraft("advanceCents", parseMoney(event.target.value))}
-                  placeholder="0"
-                />
+                <div className="money-input">
+                  <input
+                    inputMode="numeric"
+                    readOnly={!canSave}
+                    value={draft.advanceCents ? draft.advanceCents / 100 : ""}
+                    onChange={(event) => updateDraft("advanceCents", parseMoney(event.target.value))}
+                    placeholder="0"
+                  />
+                  <select
+                    aria-label="Moneda"
+                    disabled={!canSave}
+                    value={draft.currency}
+                    onChange={(event) => updateDraft("currency", coerceCurrency(event.target.value))}
+                  >
+                    <option value="COP">COP</option>
+                    <option value="USD">USD</option>
+                  </select>
+                </div>
               </label>
               <label>
                 Fecha consignacion
@@ -1216,11 +1236,11 @@ export default function Home() {
             </div>
             <div className="calc-list">
               <span>Subtotal</span>
-              <strong>{formatMoney(totals.subtotal)}</strong>
+              <strong>{formatMoney(totals.subtotal, draft.currency)}</strong>
               <span>IVA</span>
-              <strong>{formatMoney(totals.tax)}</strong>
+              <strong>{formatMoney(totals.tax, draft.currency)}</strong>
               <span>Total gastado</span>
-              <strong>{formatMoney(totals.spent)}</strong>
+              <strong>{formatMoney(totals.spent, draft.currency)}</strong>
               <label>
                 Efectivo devuelto
                 <input
@@ -1235,7 +1255,7 @@ export default function Home() {
               </label>
               <strong className={totals.balance < 0 ? "negative" : "positive"}>
                 {totals.balance < 0 ? "Excedido " : "Disponible "}
-                {formatMoney(Math.abs(totals.balance))}
+                {formatMoney(Math.abs(totals.balance), draft.currency)}
               </strong>
             </div>
 
@@ -1359,7 +1379,7 @@ export default function Home() {
                       className="status-row"
                       key={record.id}
                       onClick={() => {
-                        setDraft(record);
+                        setDraft(normalizeSettlement(record));
                         setActiveId(record.id);
                         setActiveView("new");
                       }}
@@ -1369,9 +1389,9 @@ export default function Home() {
                         <small>{record.employee || "Sin responsable"} · {record.fundType}</small>
                       </span>
                       <span className={`request-status ${record.status.replaceAll(" ", "-")}`}>{record.status}</span>
-                      <span>{formatMoney(record.advanceCents)}</span>
-                      <span>{formatMoney(spent)}</span>
-                      <span className={balance < 0 ? "negative" : "positive"}>{formatMoney(Math.abs(balance))}</span>
+                      <span>{formatMoney(record.advanceCents, record.currency)}</span>
+                      <span>{formatMoney(spent, record.currency)}</span>
+                      <span className={balance < 0 ? "negative" : "positive"}>{formatMoney(Math.abs(balance), record.currency)}</span>
                       <span>{record.evidences.length}</span>
                     </button>
                   );

@@ -18,12 +18,11 @@ function getRuntimeValue(key: string) {
   return value.replace(/^["']|["']$/g, "");
 }
 
-function formatCop(cents: number) {
-  return new Intl.NumberFormat("es-CO", {
-    style: "currency",
-    currency: "COP",
+function formatMoney(cents: number, currency: string) {
+  const code = currency?.toUpperCase() === "USD" ? "USD" : "COP";
+  return `${code} ${new Intl.NumberFormat("es-CO", {
     maximumFractionDigits: 0,
-  }).format(Math.round(cents / 100));
+  }).format(Math.round(cents / 100))}`;
 }
 
 function cleanMailName(value: string) {
@@ -138,7 +137,7 @@ export async function notifyApprovalRequest(settlement: SettlementForMail, revie
                     ${detailRow("Tipo", settlement.fundType)}
                     ${detailRow("Proyecto / objeto", settlement.projectName)}
                     ${detailRow("Codigo", settlement.fundCode)}
-                    ${detailRow("Valor solicitado", formatCop(settlement.advanceCents), true)}
+                    ${detailRow("Valor solicitado", formatMoney(settlement.advanceCents, settlement.currency), true)}
                     ${detailRow("Estado", settlement.status)}
                   </table>
                   <p style="font-size: 14px; line-height: 1.5; margin: 0 0 18px; color: #4b5d73;">

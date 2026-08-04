@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { getDb } from "../../../../db";
 import { evidences, expenses, settlementAccess, settlements } from "../../../../db/schema";
-import { assignReviewers, cleanCurrency, cleanExpense, hydrateSettlement } from "../route";
+import { assignReviewers, cleanCurrency, cleanCurrencyCode, cleanExpense, hydrateSettlement } from "../route";
 import { requireUser } from "../../../auth";
 import { notifyApprovalRequest } from "../../../notifications";
 import { deleteEvidenceFile } from "../../../storage";
@@ -37,6 +37,7 @@ export async function PUT(request: Request, context: RouteContext) {
         periodStart: String(payload.periodStart || ""),
         periodEnd: String(payload.periodEnd || ""),
         status: String(payload.status || "borrador"),
+        currency: cleanCurrencyCode(payload.currency),
         advanceCents: cleanCurrency(payload.advanceCents),
         cashReturnedCents: cleanCurrency(payload.cashReturnedCents),
         notes: String(payload.notes || ""),

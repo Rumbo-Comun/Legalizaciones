@@ -47,6 +47,10 @@ function cleanCurrency(value: unknown) {
   return Number.isFinite(Number(value)) ? Math.max(0, Math.round(Number(value))) : 0;
 }
 
+function cleanCurrencyCode(value: unknown) {
+  return String(value || "COP").toUpperCase() === "USD" ? "USD" : "COP";
+}
+
 function cleanExpense(expense: Partial<ExpensePayload>, settlementId: string): ExpensePayload {
   return {
     id: String(expense.id || crypto.randomUUID()),
@@ -159,6 +163,7 @@ export async function POST(request: Request) {
       periodEnd: String(payload.periodEnd || ""),
       status: String(payload.status || "borrador"),
       ownerId: user.id,
+      currency: cleanCurrencyCode(payload.currency),
       advanceCents: cleanCurrency(payload.advanceCents),
       cashReturnedCents: cleanCurrency(payload.cashReturnedCents),
       notes: String(payload.notes || ""),
@@ -180,4 +185,4 @@ export async function POST(request: Request) {
   }
 }
 
-export { hydrateSettlement, cleanCurrency, cleanExpense, assignReviewers };
+export { hydrateSettlement, cleanCurrency, cleanCurrencyCode, cleanExpense, assignReviewers };

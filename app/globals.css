@@ -96,6 +96,32 @@ textarea:focus {
   box-shadow: 0 0 0 3px rgba(10, 79, 179, 0.13);
 }
 
+.money-input {
+  align-items: stretch;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 86px;
+}
+
+.money-input input {
+  border-bottom-right-radius: 0;
+  border-right: 0;
+  border-top-right-radius: 0;
+}
+
+.money-input select {
+  background: var(--sky);
+  border-bottom-left-radius: 0;
+  border-top-left-radius: 0;
+  color: var(--blue-dark);
+  font-weight: 800;
+  padding-left: 8px;
+}
+
+.money-input:focus-within input,
+.money-input:focus-within select {
+  border-color: var(--blue);
+}
+
 label {
   color: var(--muted);
   display: grid;

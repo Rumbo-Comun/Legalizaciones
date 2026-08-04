@@ -36,6 +36,7 @@ export const settlements = sqliteTable("settlements", {
   periodEnd: text("period_end").notNull().default(""),
   status: text("status").notNull().default("borrador"),
   ownerId: text("owner_id").references(() => users.id, { onDelete: "set null" }),
+  currency: text("currency").notNull().default("COP"),
   advanceCents: integer("advance_cents").notNull().default(0),
   cashReturnedCents: integer("cash_returned_cents").notNull().default(0),
   notes: text("notes").notNull().default(""),
