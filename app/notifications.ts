@@ -65,6 +65,12 @@ function detailRow(label: string, value: unknown, highlight = false) {
   `;
 }
 
+function normalizeAppUrl(value: string) {
+  const trimmed = value.trim().replace(/\/$/, "");
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  return `https://${trimmed}`;
+}
+
 async function logNotification(settlementId: string, message: string) {
   const db = getDb();
   const [admin] = await db.select().from(users).where(eq(users.role, "admin"));
@@ -93,7 +99,7 @@ export async function notifyApprovalRequest(settlement: SettlementForMail, revie
   const apiKey = getRuntimeValue("RESEND_API_KEY");
   const from = requesterFrom(requester) || getRuntimeValue("MAIL_FROM") || "Legalizaciones USCOM <noreply@uscom.net.co>";
   const baseUrl = getRuntimeValue("APP_BASE_URL") || fallbackBaseUrl;
-  const openUrl = `${baseUrl.replace(/\/$/, "")}`;
+  const openUrl = normalizeAppUrl(baseUrl);
 
   if (!apiKey) {
     await logNotification(
@@ -134,9 +140,19 @@ export async function notifyApprovalRequest(settlement: SettlementForMail, revie
                   <p style="font-size: 14px; line-height: 1.5; margin: 0 0 18px; color: #4b5d73;">
                     Para revisar soportes, registrar observaciones o aprobar la consignacion, abra la solicitud en la plataforma.
                   </p>
-                  <a href="${escapeHtml(openUrl)}" style="display: inline-block; background: #075eb8; color: #ffffff; text-decoration: none; font-weight: 800; padding: 14px 22px; border-radius: 6px;">
-                    Abrir solicitud en Legalizaciones
-                  </a>
+                  <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 0 0 14px;">
+                    <tr>
+                      <td bgcolor="#075eb8" style="border-radius: 6px;">
+                        <a href="${escapeHtml(openUrl)}" target="_blank" style="display: inline-block; color: #ffffff; font-size: 14px; font-weight: 800; padding: 14px 22px; text-decoration: none;">
+                          Abrir solicitud en Legalizaciones
+                        </a>
+                      </td>
+                    </tr>
+                  </table>
+                  <p style="font-size: 12px; line-height: 1.5; margin: 0; color: #7a8797;">
+                    Si el boton no abre, copie este enlace en el navegador:<br />
+                    <a href="${escapeHtml(openUrl)}" target="_blank" style="color: #075eb8; word-break: break-all;">${escapeHtml(openUrl)}</a>
+                  </p>
                 </td>
               </tr>
               <tr>
