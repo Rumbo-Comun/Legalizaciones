@@ -195,11 +195,12 @@ export default function Home() {
   const [resetPasswordConfirm, setResetPasswordConfirm] = useState("");
   const [users, setUsers] = useState<AppUser[]>([]);
   const [newUser, setNewUser] = useState({
-    name: "WILLIAM",
-    email: "william@local",
+    name: "",
+    email: "",
     role: "solicitante",
-    password: "william123",
+    password: "",
   });
+  const [editingUserId, setEditingUserId] = useState("");
   const [selectedUserId, setSelectedUserId] = useState("");
   const [commentDraft, setCommentDraft] = useState("");
   const [topUpAmount, setTopUpAmount] = useState("");
@@ -876,7 +877,24 @@ export default function Home() {
       return;
     }
     setNotice("Usuario guardado.");
+    setEditingUserId("");
+    setNewUser({ name: "", email: "", role: "solicitante", password: "" });
     await loadUsers();
+  }
+
+  function editUser(user: AppUser) {
+    setEditingUserId(user.id);
+    setNewUser({
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      password: "",
+    });
+  }
+
+  function clearUserForm() {
+    setEditingUserId("");
+    setNewUser({ name: "", email: "", role: "solicitante", password: "" });
   }
 
   async function grantAccess() {
@@ -1800,8 +1818,8 @@ export default function Home() {
 
                 <form className="user-form" onSubmit={saveUser}>
                   <div className="admin-form-title">
-                    <strong>Nuevo usuario o actualizacion</strong>
-                    <span>Si el correo ya existe, se actualiza rol y clave temporal.</span>
+                    <strong>{editingUserId ? "Editar usuario" : "Nuevo usuario"}</strong>
+                    <span>{editingUserId ? "Actualiza nombre, correo, rol o clave si necesitas restablecerla." : "Registra usuarios autorizados para acceder al sistema."}</span>
                   </div>
                   <label>
                     Nombre
@@ -1821,9 +1839,12 @@ export default function Home() {
                   </label>
                   <label>
                     Clave temporal
-                    <input value={newUser.password} onChange={(event) => setNewUser({ ...newUser, password: event.target.value })} />
+                    <input value={newUser.password} onChange={(event) => setNewUser({ ...newUser, password: event.target.value })} placeholder={editingUserId ? "Opcional: solo si se va a cambiar" : "Cambio123"} />
                   </label>
-                  <button className="save" type="submit">Guardar usuario</button>
+                  <div className="user-form-actions">
+                    <button className="save" type="submit">{editingUserId ? "Actualizar usuario" : "Guardar usuario"}</button>
+                    {editingUserId && <button type="button" className="ghost" onClick={clearUserForm}>Nuevo</button>}
+                  </div>
                 </form>
 
                 <div className="user-table" role="table" aria-label="Usuarios autorizados">
@@ -1831,6 +1852,7 @@ export default function Home() {
                     <span role="columnheader">Usuario</span>
                     <span role="columnheader">Rol</span>
                     <span role="columnheader">Estado</span>
+                    <span role="columnheader">Acciones</span>
                   </div>
                   {users.map((user) => (
                     <div className="user-table-row" role="row" key={user.id}>
@@ -1843,6 +1865,9 @@ export default function Home() {
                       </span>
                       <span role="cell" className={user.active === 0 ? "status-badge off" : "status-badge"}>
                         {user.active === 0 ? "Inactivo" : "Activo"}
+                      </span>
+                      <span role="cell">
+                        <button type="button" className="mini-action" onClick={() => editUser(user)}>Editar</button>
                       </span>
                     </div>
                   ))}

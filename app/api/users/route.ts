@@ -41,7 +41,7 @@ export async function POST(request: Request) {
     const email = String(payload.email || "").trim().toLowerCase();
     const name = String(payload.name || "").trim();
     const role = String(payload.role || "revisor");
-    const password = String(payload.password || "cambio123");
+    const password = String(payload.password || "");
 
     if (!email || !name) {
       return Response.json({ error: "Nombre y correo son obligatorios" }, { status: 400 });
@@ -49,19 +49,27 @@ export async function POST(request: Request) {
 
     const db = getDb();
     const [existing] = await db.select().from(users).where(eq(users.email, email));
-    const passwordInfo = await passwordParts(password);
     if (existing) {
+      const passwordInfo = password ? await passwordParts(password) : null;
       await db
         .update(users)
         .set({
           name,
           role,
           active: 1,
-          passwordHash: passwordInfo.hash,
-          passwordSalt: passwordInfo.salt,
+          ...(passwordInfo
+            ? {
+                passwordHash: passwordInfo.hash,
+                passwordSalt: passwordInfo.salt,
+              }
+            : {}),
         })
         .where(eq(users.id, existing.id));
     } else {
+      if (password.length < 8) {
+        return Response.json({ error: "La clave temporal debe tener minimo 8 caracteres." }, { status: 400 });
+      }
+      const passwordInfo = await passwordParts(password);
       await db.insert(users).values({
         id: crypto.randomUUID(),
         name,

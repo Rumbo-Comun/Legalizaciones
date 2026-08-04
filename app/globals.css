@@ -1115,7 +1115,7 @@ label {
   border-top: 1px solid var(--line);
   display: grid;
   gap: 12px;
-  grid-template-columns: minmax(220px, 1fr) 160px 120px;
+  grid-template-columns: minmax(220px, 1fr) 160px 120px 120px;
   padding: 11px 14px;
 }
 
@@ -1164,6 +1164,16 @@ label {
 .status-badge {
   background: #e7f8f4;
   color: var(--teal-dark);
+}
+
+.user-form-actions {
+  align-items: end;
+  display: flex;
+  gap: 10px;
+}
+
+.user-form-actions button {
+  flex: 1;
 }
 
 .status-badge.off {
