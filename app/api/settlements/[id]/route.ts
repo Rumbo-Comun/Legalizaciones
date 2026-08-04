@@ -3,7 +3,7 @@ import { getDb } from "../../../../db";
 import { evidences, expenses, settlementAccess, settlements } from "../../../../db/schema";
 import { assignReviewers, cleanCurrency, cleanCurrencyCode, cleanExpense, hydrateSettlement } from "../route";
 import { requireUser } from "../../../auth";
-import { notifyApprovalRequest, notifyManagementSubmission } from "../../../notifications";
+import { notifyApprovalRequest, notifyManagementSubmission, notifyTopUpRequest } from "../../../notifications";
 import { deleteEvidenceFile } from "../../../storage";
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -56,6 +56,16 @@ export async function PUT(request: Request, context: RouteContext) {
       const reviewerRows = await assignReviewers(id);
       const [settlement] = await db.select().from(settlements).where(eq(settlements.id, id));
       if (settlement) await notifyManagementSubmission(settlement, reviewerRows, user);
+    }
+    if (nextStatus === "solicitud ampliacion" && (current.status !== nextStatus || payload.topUpAmountCents)) {
+      const reviewerRows = await assignReviewers(id);
+      const [settlement] = await db.select().from(settlements).where(eq(settlements.id, id));
+      if (settlement) {
+        await notifyTopUpRequest(settlement, reviewerRows, user, {
+          amountCents: cleanCurrency(payload.topUpAmountCents),
+          reason: String(payload.topUpReason || ""),
+        });
+      }
     }
 
     const currentExpenses = await db.select().from(expenses).where(eq(expenses.settlementId, id));

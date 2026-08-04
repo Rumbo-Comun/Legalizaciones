@@ -77,6 +77,11 @@ type Settlement = {
   comments?: ReviewComment[];
 };
 
+type SettlementOverride = Partial<Settlement> & {
+  topUpAmountCents?: number;
+  topUpReason?: string;
+};
+
 const emptyExpense = (): Expense => ({
   id: crypto.randomUUID(),
   date: new Date().toISOString().slice(0, 10),
@@ -360,7 +365,7 @@ export default function Home() {
     if (message) setNotice(message);
   }
 
-  async function saveSettlement(event?: FormEvent, override: Partial<Settlement> = {}) {
+  async function saveSettlement(event?: FormEvent, override: SettlementOverride = {}) {
     event?.preventDefault();
     if (!canSave) {
       setNotice("Este usuario puede revisar y comentar, pero no guardar cambios.");
@@ -526,7 +531,7 @@ export default function Home() {
       setNotice("No se pudo registrar la solicitud de ampliacion.");
       return;
     }
-    await saveSettlement(undefined, { status: "solicitud ampliacion" });
+    await saveSettlement(undefined, { status: "solicitud ampliacion", topUpAmountCents: amount, topUpReason: reason });
     setTopUpAmount("");
     setTopUpReason("");
     setNotice("Solicitud de ampliacion enviada a revision.");
