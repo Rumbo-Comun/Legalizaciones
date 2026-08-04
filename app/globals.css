@@ -731,7 +731,7 @@ label {
   border-radius: 8px;
   display: grid;
   gap: 10px;
-  grid-template-columns: 34px 132px 150px minmax(150px, 1fr) 120px minmax(190px, 1.2fr) 110px 100px 130px 112px;
+  grid-template-columns: 34px 126px 142px minmax(140px, 1fr) 112px minmax(180px, 1.2fr) 110px 110px 112px 112px;
   padding: 12px;
 }
 

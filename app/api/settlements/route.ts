@@ -62,6 +62,7 @@ function cleanExpense(expense: Partial<ExpensePayload>, settlementId: string): E
     description: String(expense.description || ""),
     amountCents: cleanCurrency(expense.amountCents),
     taxCents: cleanCurrency(expense.taxCents),
+    refundCents: cleanCurrency(expense.refundCents),
     paymentMethod: String(expense.paymentMethod || "Efectivo"),
   };
 }

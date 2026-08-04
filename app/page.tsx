@@ -11,6 +11,7 @@ type Expense = {
   description: string;
   amountCents: number;
   taxCents: number;
+  refundCents: number;
   paymentMethod: string;
 };
 
@@ -91,6 +92,7 @@ const emptyExpense = (): Expense => ({
   description: "",
   amountCents: 0,
   taxCents: 0,
+  refundCents: 0,
   paymentMethod: "Efectivo",
 });
 
@@ -131,7 +133,23 @@ function coerceCurrency(value: unknown): CurrencyCode {
 }
 
 function normalizeSettlement(record: Settlement): Settlement {
-  return { ...record, currency: coerceCurrency(record.currency) };
+  return {
+    ...record,
+    currency: coerceCurrency(record.currency),
+    expenses: (record.expenses ?? []).map((expense) => ({ ...expense, refundCents: expense.refundCents ?? 0 })),
+  };
+}
+
+function sumSpent(expenses: Expense[]) {
+  return expenses.reduce((sum, item) => sum + item.amountCents, 0);
+}
+
+function sumRefunded(expenses: Expense[]) {
+  return expenses.reduce((sum, item) => sum + (item.refundCents ?? 0), 0);
+}
+
+function fundBalance(record: Pick<Settlement, "advanceCents" | "cashReturnedCents" | "expenses">) {
+  return record.advanceCents - sumSpent(record.expenses) + sumRefunded(record.expenses) - record.cashReturnedCents;
 }
 
 function parseUtcTimestamp(value: string) {
@@ -195,9 +213,10 @@ export default function Home() {
   const [activityTarget, setActivityTarget] = useState<Settlement | null>(null);
 
   const totals = useMemo(() => {
-    const spent = draft.expenses.reduce((sum, item) => sum + item.amountCents, 0);
-    const balance = draft.advanceCents - spent - draft.cashReturnedCents;
-    return { spent, balance };
+    const spent = sumSpent(draft.expenses);
+    const refunded = sumRefunded(draft.expenses);
+    const balance = fundBalance(draft);
+    return { spent, refunded, balance };
   }, [draft]);
   const hasConsignation = Boolean(activeId);
   const draftClosed = draft.status === "enviado gerencia";
@@ -239,11 +258,12 @@ export default function Home() {
     };
     for (const record of records) {
       const currency = coerceCurrency(record.currency);
-      const spent = record.expenses.reduce((sum, item) => sum + item.amountCents, 0);
+      const spent = sumSpent(record.expenses);
+      const refunded = sumRefunded(record.expenses);
       stats[currency].requested += record.advanceCents;
       stats[currency].spent += spent;
-      stats[currency].returned += record.cashReturnedCents;
-      stats[currency].balance += record.advanceCents - spent - record.cashReturnedCents;
+      stats[currency].returned += record.cashReturnedCents + refunded;
+      stats[currency].balance += fundBalance(record);
       stats[currency].count += 1;
     }
     return [stats.COP, stats.USD];
@@ -257,7 +277,7 @@ export default function Home() {
         const mapKey = `${currency}-${key}`;
         const current = categories.get(mapKey) ?? { category: key, currency, count: 0, amount: 0 };
         current.count += 1;
-        current.amount += expense.amountCents;
+        current.amount += expense.amountCents - (expense.refundCents ?? 0);
         categories.set(mapKey, current);
       }
     }
@@ -553,10 +573,11 @@ export default function Home() {
       type === "json"
         ? JSON.stringify(records, null, 2)
         : [
-            "id,tipo,responsable,area,proyecto_o_objeto,codigo,referencia_consignacion,estado,moneda,consignado,gastado,devuelto,saldo",
+            "id,tipo,responsable,area,proyecto_o_objeto,codigo,referencia_consignacion,estado,moneda,consignado,gastado,reintegrado,devuelto,saldo",
             ...records.map((record) => {
-              const spent = record.expenses.reduce((sum, item) => sum + item.amountCents, 0);
-              const balance = record.advanceCents - spent - record.cashReturnedCents;
+              const spent = sumSpent(record.expenses);
+              const refunded = sumRefunded(record.expenses);
+              const balance = fundBalance(record);
               return [
                 record.id,
                 record.fundType,
@@ -569,6 +590,7 @@ export default function Home() {
                 record.currency,
                 record.advanceCents / 100,
                 spent / 100,
+                refunded / 100,
                 record.cashReturnedCents / 100,
                 balance / 100,
               ]
@@ -617,8 +639,9 @@ export default function Home() {
       const pageHeight = doc.internal.pageSize.getHeight();
       const margin = 42;
       let y = margin;
-      const spent = saved.expenses.reduce((sum, item) => sum + item.amountCents, 0);
-      const balance = saved.advanceCents - spent - saved.cashReturnedCents;
+      const spent = sumSpent(saved.expenses);
+      const refunded = sumRefunded(saved.expenses);
+      const balance = fundBalance(saved);
 
       const addLine = (label: string, value: string) => {
         doc.setFont("helvetica", "bold");
@@ -661,6 +684,7 @@ export default function Home() {
       y += 10;
       addLine("Consignado", formatMoney(saved.advanceCents, saved.currency));
       addLine("Gastado", formatMoney(spent, saved.currency));
+      addLine("Reintegrado en gastos", formatMoney(refunded, saved.currency));
       addLine("Devuelto", formatMoney(saved.cashReturnedCents, saved.currency));
       addLine(balance < 0 ? "Excedido" : "Disponible", formatMoney(Math.abs(balance), saved.currency));
 
@@ -683,7 +707,7 @@ export default function Home() {
         y += 14;
         doc.setFont("helvetica", "normal");
         addWrapped(
-          `${expense.vendor || "Proveedor sin registrar"} | Factura: ${expense.invoice || "-"} | ${expense.description || "-"}`,
+          `${expense.vendor || "Proveedor sin registrar"} | Factura: ${expense.invoice || "-"} | Reintegrado: ${formatMoney(expense.refundCents ?? 0, saved.currency)} | ${expense.description || "-"}`,
           margin,
           pageWidth - margin * 2,
         );
@@ -1283,6 +1307,18 @@ export default function Home() {
                       />
                     </label>
                     <label>
+                      Reintegrado
+                      <input
+                        inputMode="numeric"
+                        readOnly={!canEdit}
+                        value={expense.refundCents ? expense.refundCents / 100 : ""}
+                        onChange={(event) =>
+                          updateExpense(expense.id, { refundCents: parseMoney(event.target.value) })
+                        }
+                        placeholder="0"
+                      />
+                    </label>
+                    <label>
                       Medio
                       <select
                         value={expense.paymentMethod}
@@ -1358,6 +1394,8 @@ export default function Home() {
             <div className="calc-list">
               <span>Total gastado</span>
               <strong>{formatMoney(totals.spent, draft.currency)}</strong>
+              <span>Reintegrado</span>
+              <strong className="positive">{formatMoney(totals.refunded, draft.currency)}</strong>
               <label>
                 Efectivo devuelto
                 <input
@@ -1490,8 +1528,10 @@ export default function Home() {
                   <span>Acciones</span>
                 </div>
                 {records.map((record) => {
-                  const spent = record.expenses.reduce((sum, item) => sum + item.amountCents, 0);
-                  const balance = record.advanceCents - spent - record.cashReturnedCents;
+                  const spent = sumSpent(record.expenses);
+                  const refunded = sumRefunded(record.expenses);
+                  const netSpent = spent - refunded;
+                  const balance = fundBalance(record);
                   const recordClosed = record.status === "enviado gerencia";
                   const canUseActions = canActOnRecord(record);
                   return (
@@ -1505,7 +1545,7 @@ export default function Home() {
                       </span>
                       <span className={`request-status ${record.status.replaceAll(" ", "-")}`}>{record.status}</span>
                       <span>{formatMoney(record.advanceCents, record.currency)}</span>
-                      <span>{formatMoney(spent, record.currency)}</span>
+                      <span>{formatMoney(netSpent, record.currency)}</span>
                       <span className={balance < 0 ? "negative" : "positive"}>{formatMoney(Math.abs(balance), record.currency)}</span>
                       <span>{record.evidences.length}</span>
                       <span className="row-actions">

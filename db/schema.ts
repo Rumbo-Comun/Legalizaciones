@@ -80,6 +80,7 @@ export const expenses = sqliteTable("expenses", {
   description: text("description").notNull().default(""),
   amountCents: integer("amount_cents").notNull().default(0),
   taxCents: integer("tax_cents").notNull().default(0),
+  refundCents: integer("refund_cents").notNull().default(0),
   paymentMethod: text("payment_method").notNull().default("efectivo"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
