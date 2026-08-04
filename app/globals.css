@@ -179,6 +179,24 @@ label {
   width: 76%;
 }
 
+.brand-copy {
+  display: grid;
+  gap: 3px;
+  text-align: center;
+}
+
+.brand-copy strong {
+  color: var(--ink);
+  font-size: 1rem;
+}
+
+.brand-copy span {
+  color: var(--blue);
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
 .workbench,
 .history {
   display: flex;
@@ -204,7 +222,7 @@ label {
 .crm-brand {
   border-bottom: 1px solid rgba(255, 255, 255, 0.16);
   display: grid;
-  gap: 4px;
+  gap: 6px;
   padding-bottom: 14px;
 }
 
@@ -216,6 +234,12 @@ label {
   max-width: 185px;
   padding: 8px;
   width: 100%;
+}
+
+.crm-brand strong {
+  color: #ffffff;
+  font-size: 0.95rem;
+  line-height: 1.25;
 }
 
 .crm-brand span,

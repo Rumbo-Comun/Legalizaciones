@@ -725,6 +725,10 @@ export default function Home() {
           <div className="login-logo">
             <img src="/uscom-logo.png" alt="USCOM SAS" />
           </div>
+          <div className="brand-copy">
+            <strong>Sistema de Legalización de Gastos</strong>
+            <span>USCOM SAS</span>
+          </div>
           <p className="eyebrow">Acceso privado</p>
           <h1>Legalizaciones</h1>
           <label>
@@ -752,7 +756,8 @@ export default function Home() {
       <aside className="crm-sidebar">
         <div className="crm-brand">
           <img src="/uscom-logo.png" alt="USCOM SAS" />
-          <span>Legalizaciones</span>
+          <strong>Sistema de Legalización de Gastos</strong>
+          <span>USCOM SAS</span>
         </div>
         <nav className="crm-nav" aria-label="Menu principal">
           <button type="button" className={activeView === "dashboard" ? "active" : ""} onClick={() => setActiveView("dashboard")}>
