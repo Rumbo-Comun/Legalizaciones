@@ -1682,14 +1682,15 @@ export default function Home() {
               )}
               {draft.expenses.map((expense, index) => {
                 const linked = draft.evidences.filter((item) => item.expenseId === expense.id);
+                const expenseLocked = linked.length > 0;
                 return (
-                  <article className="expense-row" key={expense.id}>
+                  <article className={`expense-row ${expenseLocked ? "locked-expense" : ""}`} key={expense.id}>
                     <div className="row-number">{index + 1}</div>
                     <label>
                       Fecha
                       <input
                         type="date"
-                        readOnly={!canEdit}
+                        readOnly={!canEdit || expenseLocked}
                         value={expense.date}
                         onChange={(event) => updateExpense(expense.id, { date: event.target.value })}
                       />
@@ -1698,7 +1699,7 @@ export default function Home() {
                       Categoria
                       <select
                         value={expense.category}
-                        disabled={!canEdit}
+                        disabled={!canEdit || expenseLocked}
                         onChange={(event) => updateExpense(expense.id, { category: event.target.value })}
                       >
                         <option>Transporte</option>
@@ -1713,7 +1714,7 @@ export default function Home() {
                       Proveedor
                       <input
                         value={expense.vendor}
-                        readOnly={!canEdit}
+                        readOnly={!canEdit || expenseLocked}
                         onChange={(event) => updateExpense(expense.id, { vendor: event.target.value })}
                         placeholder="Nombre o NIT"
                       />
@@ -1722,7 +1723,7 @@ export default function Home() {
                       Factura
                       <input
                         value={expense.invoice}
-                        readOnly={!canEdit}
+                        readOnly={!canEdit || expenseLocked}
                         onChange={(event) => updateExpense(expense.id, { invoice: event.target.value })}
                         placeholder="FV-000"
                       />
@@ -1731,7 +1732,7 @@ export default function Home() {
                       Descripcion
                       <input
                         value={expense.description}
-                        readOnly={!canEdit}
+                        readOnly={!canEdit || expenseLocked}
                         onChange={(event) =>
                           updateExpense(expense.id, { description: event.target.value })
                         }
@@ -1742,7 +1743,7 @@ export default function Home() {
                       Valor
                       <input
                         inputMode="numeric"
-                        readOnly={!canEdit}
+                        readOnly={!canEdit || expenseLocked}
                         value={expense.amountCents ? expense.amountCents / 100 : ""}
                         onChange={(event) =>
                           updateExpense(expense.id, { amountCents: parseMoney(event.target.value) })
@@ -1754,7 +1755,7 @@ export default function Home() {
                       Reintegrado
                       <input
                         inputMode="numeric"
-                        readOnly={!canEdit}
+                        readOnly={!canEdit || expenseLocked}
                         value={expense.refundCents ? expense.refundCents / 100 : ""}
                         onChange={(event) =>
                           updateExpense(expense.id, { refundCents: parseMoney(event.target.value) })
@@ -1766,7 +1767,7 @@ export default function Home() {
                       Medio
                       <select
                         value={expense.paymentMethod}
-                        disabled={!canEdit}
+                        disabled={!canEdit || expenseLocked}
                         onChange={(event) =>
                           updateExpense(expense.id, { paymentMethod: event.target.value })
                         }
@@ -1777,11 +1778,11 @@ export default function Home() {
                       </select>
                     </label>
                     <div className="file-tools">
-                      <label className="upload">
-                        {uploading === expense.id ? "Subiendo..." : "Adjuntar"}
+                      <label className={`upload ${expenseLocked ? "support-loaded" : ""}`}>
+                        {expenseLocked ? "Soporte cargado" : uploading === expense.id ? "Subiendo..." : "Adjuntar"}
                         <input
                           type="file"
-                          disabled={!canEdit}
+                          disabled={!canEdit || expenseLocked}
                           accept="image/*,.pdf"
                           onChange={(event) => uploadEvidence(event, expense.id)}
                         />
@@ -1789,8 +1790,8 @@ export default function Home() {
                       <button
                         type="button"
                         className="icon danger"
-                        disabled={!canEdit}
-                        title="Eliminar gasto"
+                        disabled={!canEdit || expenseLocked}
+                        title={expenseLocked ? "Gasto bloqueado por soporte cargado" : "Eliminar gasto"}
                         onClick={() =>
                           setDraft((current) => ({
                             ...current,
@@ -1811,9 +1812,9 @@ export default function Home() {
                             {evidence.fileName}
                             <button
                               type="button"
-                              disabled={!canEdit}
+                              disabled
                               onClick={() => deleteEvidence(evidence.id)}
-                              title="Quitar evidencia"
+                              title="El soporte bloquea el gasto y no se puede quitar desde aqui"
                             >
                               x
                             </button>
