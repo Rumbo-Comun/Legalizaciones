@@ -1250,8 +1250,9 @@ export default function Home() {
             <strong>Sistema de Legalización de Gastos</strong>
             <span>USCOM SAS</span>
           </div>
-          <p className="eyebrow">Acceso privado</p>
-          <h1>{resetToken ? "Nueva clave" : recoverOpen ? "Recuperar acceso" : "Legalizaciones"}</h1>
+          {(resetToken || recoverOpen) && (
+            <h1>{resetToken ? "Nueva contraseña" : "Recuperar acceso"}</h1>
+          )}
           {!recoverOpen && !resetToken && (
             <>
               <label>
@@ -1259,7 +1260,7 @@ export default function Home() {
                 <input value={loginEmail} onChange={(event) => setLoginEmail(event.target.value)} autoComplete="username" />
               </label>
               <label>
-                Clave
+                Contraseña
                 <input
                   type="password"
                   value={loginPassword}
@@ -1269,7 +1270,7 @@ export default function Home() {
               </label>
               <button className="save" type="submit">Entrar</button>
               <button type="button" className="link-button" onClick={() => setRecoverOpen(true)}>
-                Olvide mi usuario o contrasena
+                Olvidé mi usuario o contraseña
               </button>
             </>
           )}
@@ -1405,7 +1406,7 @@ export default function Home() {
                       setUserMenuOpen(false);
                     }}
                   >
-                    Cambiar contrasena
+                    Cambiar contraseña
                   </button>
                   <button type="button" onClick={logout}>Cerrar sesion</button>
                 </div>
@@ -2422,7 +2423,7 @@ export default function Home() {
         {passwordModalOpen && (
           <div className="modal-backdrop" role="presentation">
             <form className="confirm-modal password-modal" role="dialog" aria-modal="true" aria-labelledby="password-title" onSubmit={changePassword}>
-              <h2 id="password-title">Cambiar contrasena</h2>
+              <h2 id="password-title">Cambiar contraseña</h2>
               <p>Actualiza tu clave de acceso. Al guardar, se cerraran las sesiones activas por seguridad.</p>
               <label>
                 Clave actual
