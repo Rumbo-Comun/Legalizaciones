@@ -141,6 +141,16 @@ function sentenceCase(value: string) {
   return normalized ? normalized.charAt(0).toUpperCase() + normalized.slice(1) : "";
 }
 
+function userPosition(user: Pick<AppUser, "name" | "email" | "role">) {
+  const name = user.name.toLowerCase();
+  const email = user.email.toLowerCase();
+  if (name.includes("andres") || email === "proyectos@uscom.net.co") return "Gerente de Proyectos";
+  if (name.includes("felipe") || email === "analista@uscom.net.co") return "Desarrollador";
+  if (name.includes("william") || email === "defensa@uscom.net.co") return "Gerente de Operaciones";
+  if (name.includes("otto") || email === "canales@uscom.net.co" || email === "otto.urrea@uscom.net.co") return "Gerente General";
+  return sentenceCase(user.role);
+}
+
 function coerceCurrency(value: unknown): CurrencyCode {
   return String(value || "COP").toUpperCase() === "USD" ? "USD" : "COP";
 }
@@ -1375,7 +1385,7 @@ export default function Home() {
             </h1>
           </div>
           <div className="actions">
-            <span className="user-pill">{currentUser.name} · {currentUser.role}</span>
+            <span className="user-pill">{currentUser.name} · {userPosition(currentUser)}</span>
             <div className="user-menu">
               <button type="button" className="menu-trigger" onClick={() => setUserMenuOpen((open) => !open)} aria-expanded={userMenuOpen}>
                 Cuenta
