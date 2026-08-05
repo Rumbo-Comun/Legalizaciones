@@ -71,8 +71,10 @@ function missingRequiredSettlementFields(payload: SettlementPayload) {
   if (!String(payload.department || "").trim()) missing.push("Area");
   if (cleanCurrency(payload.advanceCents) <= 0) missing.push("Valor solicitado / consignado");
   if (!String(payload.depositSource || "").trim()) missing.push("Origen");
-  if (!String(payload.periodStart || "").trim()) missing.push("Fecha desde");
-  if (!String(payload.periodEnd || "").trim()) missing.push("Fecha hasta");
+  if (requiresEstimatedDates(String(payload.fundType || ""))) {
+    if (!String(payload.periodStart || "").trim()) missing.push("Fecha desde");
+    if (!String(payload.periodEnd || "").trim()) missing.push("Fecha hasta");
+  }
   return missing;
 }
 

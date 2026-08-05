@@ -516,8 +516,10 @@ export default function Home() {
     if (!payload.depositSource.trim()) {
       missingFields.push("Origen");
     }
-    if (!payload.periodStart) missingFields.push("Fecha desde");
-    if (!payload.periodEnd) missingFields.push("Fecha hasta");
+    if (requiresEstimatedDates(payload.fundType)) {
+      if (!payload.periodStart) missingFields.push("Fecha desde");
+      if (!payload.periodEnd) missingFields.push("Fecha hasta");
+    }
     if (missingFields.length) {
       setValidationModal({
         title: "Campos obligatorios pendientes",
@@ -1347,26 +1349,30 @@ export default function Home() {
                   <option value="Transferencia">Transferencia</option>
                 </select>
               </label>
-              <label>
-                <FieldLabel>Desde</FieldLabel>
-                <input
-                  type="date"
-                  readOnly={!canEdit}
-                  required
-                  value={draft.periodStart}
-                  onChange={(event) => updateDraft("periodStart", event.target.value)}
-                />
-              </label>
-              <label>
-                <FieldLabel>Hasta</FieldLabel>
-                <input
-                  type="date"
-                  readOnly={!canEdit}
-                  required
-                  value={draft.periodEnd}
-                  onChange={(event) => updateDraft("periodEnd", event.target.value)}
-                />
-              </label>
+              {requiresEstimatedDates(draft.fundType) && (
+                <>
+                  <label>
+                    <FieldLabel>Desde</FieldLabel>
+                    <input
+                      type="date"
+                      readOnly={!canEdit}
+                      required
+                      value={draft.periodStart}
+                      onChange={(event) => updateDraft("periodStart", event.target.value)}
+                    />
+                  </label>
+                  <label>
+                    <FieldLabel>Hasta</FieldLabel>
+                    <input
+                      type="date"
+                      readOnly={!canEdit}
+                      required
+                      value={draft.periodEnd}
+                      onChange={(event) => updateDraft("periodEnd", event.target.value)}
+                    />
+                  </label>
+                </>
+              )}
             </div>
 
             <label className="full">
