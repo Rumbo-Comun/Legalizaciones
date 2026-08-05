@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { getDb } from "../../../../db";
 import { evidences, expenses, settlementAccess, settlements } from "../../../../db/schema";
-import { assignReviewers, cleanCurrency, cleanCurrencyCode, cleanExpense, hydrateSettlement, requiresEstimatedDates } from "../route";
+import { assignReviewers, cleanCurrency, cleanCurrencyCode, cleanExpense, hydrateSettlement, missingRequiredSettlementFields } from "../route";
 import { requireUser } from "../../../auth";
 import { notifyApprovalRequest, notifyManagementSubmission, notifyTopUpRequest } from "../../../notifications";
 import { deleteEvidenceFile } from "../../../storage";
@@ -31,8 +31,9 @@ export async function PUT(request: Request, context: RouteContext) {
     const nextFundType = String(payload.fundType || "caja menor");
     const nextPeriodStart = String(payload.periodStart || "");
     const nextPeriodEnd = String(payload.periodEnd || "");
-    if (requiresEstimatedDates(nextFundType) && (!nextPeriodStart || !nextPeriodEnd)) {
-      return Response.json({ error: "Las fechas desde y hasta son obligatorias para Viaticos y Proyecto." }, { status: 400 });
+    const missingFields = missingRequiredSettlementFields(payload);
+    if (missingFields.length) {
+      return Response.json({ error: `Campos obligatorios pendientes: ${missingFields.join(", ")}` }, { status: 400 });
     }
 
     await db

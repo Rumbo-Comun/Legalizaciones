@@ -137,6 +137,19 @@ function requiresEstimatedDates(fundType: string) {
   return normalized.includes("viatico") || normalized.includes("proyecto");
 }
 
+function RequiredMark() {
+  return <span className="required-star" aria-label="Campo obligatorio">*</span>;
+}
+
+function FieldLabel({ children }: { children: string }) {
+  return (
+    <span className="field-label">
+      {children}
+      <RequiredMark />
+    </span>
+  );
+}
+
 function normalizeSettlement(record: Settlement): Settlement {
   return {
     ...record,
@@ -485,16 +498,26 @@ export default function Home() {
     }
     const payload = { ...draft, ...override };
     const missingFields: string[] = [];
+    if (!payload.fundType.trim()) {
+      missingFields.push("Tipo");
+    }
+    if (!payload.projectName.trim()) {
+      missingFields.push("Proyecto / objeto");
+    }
     if (!payload.employee.trim()) {
       missingFields.push("Responsable");
+    }
+    if (!payload.department.trim()) {
+      missingFields.push("Area");
     }
     if (payload.advanceCents <= 0) {
       missingFields.push("Valor solicitado / consignado");
     }
-    if (requiresEstimatedDates(payload.fundType) && (!payload.periodStart || !payload.periodEnd)) {
-      if (!payload.periodStart) missingFields.push("Fecha desde");
-      if (!payload.periodEnd) missingFields.push("Fecha estimada de finalizacion");
+    if (!payload.depositSource.trim()) {
+      missingFields.push("Origen");
     }
+    if (!payload.periodStart) missingFields.push("Fecha desde");
+    if (!payload.periodEnd) missingFields.push("Fecha hasta");
     if (missingFields.length) {
       setValidationModal({
         title: "Campos obligatorios pendientes",
@@ -1227,7 +1250,7 @@ export default function Home() {
 
             <div className="form-grid">
               <label>
-                Tipo
+                <FieldLabel>Tipo</FieldLabel>
                 <select
                   value={draft.fundType}
                   disabled={!canEdit}
@@ -1239,7 +1262,7 @@ export default function Home() {
                 </select>
               </label>
               <label>
-                Proyecto / objeto
+                <FieldLabel>Proyecto / objeto</FieldLabel>
                 <input
                   value={draft.projectName}
                   readOnly={!canSave}
@@ -1248,7 +1271,7 @@ export default function Home() {
                 />
               </label>
               <label>
-                Responsable
+                <FieldLabel>Responsable</FieldLabel>
                 <input
                   value={draft.employee}
                   readOnly={!canEdit}
@@ -1257,7 +1280,7 @@ export default function Home() {
                 />
               </label>
               <label>
-                Area
+                <FieldLabel>Area</FieldLabel>
                 <input
                   value={draft.department}
                   readOnly={!canEdit}
@@ -1266,7 +1289,7 @@ export default function Home() {
                 />
               </label>
               <label>
-                ID solicitud
+                <FieldLabel>ID solicitud</FieldLabel>
                 <input
                   value={draft.fundCode}
                   readOnly
@@ -1274,7 +1297,7 @@ export default function Home() {
                 />
               </label>
               <label>
-                Valor solicitado / consignado
+                <FieldLabel>Valor solicitado / consignado</FieldLabel>
                 <div className="money-input">
                   <input
                     inputMode="numeric"
@@ -1313,30 +1336,33 @@ export default function Home() {
                 />
               </label>
               <label>
-                Origen / cuenta
-                <input
+                <FieldLabel>Origen</FieldLabel>
+                <select
                   value={draft.depositSource}
-                  readOnly={!canEdit}
+                  disabled={!canEdit}
                   onChange={(event) => updateDraft("depositSource", event.target.value)}
-                  placeholder="Banco o caja principal"
-                />
+                >
+                  <option value="">Seleccionar origen</option>
+                  <option value="Efectivo">Efectivo</option>
+                  <option value="Transferencia">Transferencia</option>
+                </select>
               </label>
               <label>
-                {requiresEstimatedDates(draft.fundType) ? "Desde requerido" : "Desde opcional"}
+                <FieldLabel>Desde</FieldLabel>
                 <input
                   type="date"
                   readOnly={!canEdit}
-                  required={requiresEstimatedDates(draft.fundType)}
+                  required
                   value={draft.periodStart}
                   onChange={(event) => updateDraft("periodStart", event.target.value)}
                 />
               </label>
               <label>
-                {requiresEstimatedDates(draft.fundType) ? "Hasta requerido" : "Hasta opcional"}
+                <FieldLabel>Hasta</FieldLabel>
                 <input
                   type="date"
                   readOnly={!canEdit}
-                  required={requiresEstimatedDates(draft.fundType)}
+                  required
                   value={draft.periodEnd}
                   onChange={(event) => updateDraft("periodEnd", event.target.value)}
                 />

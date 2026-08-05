@@ -130,6 +130,19 @@ label {
   gap: 6px;
 }
 
+.field-label {
+  align-items: center;
+  display: inline-flex;
+  gap: 4px;
+}
+
+.required-star {
+  color: var(--rose);
+  font-size: 0.95rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
 .app-shell {
   display: grid;
   gap: 18px;

@@ -63,6 +63,19 @@ function requiresEstimatedDates(fundType: string) {
   return normalized.includes("viatico") || normalized.includes("proyecto");
 }
 
+function missingRequiredSettlementFields(payload: SettlementPayload) {
+  const missing: string[] = [];
+  if (!String(payload.fundType || "").trim()) missing.push("Tipo");
+  if (!String(payload.projectName || "").trim()) missing.push("Proyecto / objeto");
+  if (!String(payload.employee || "").trim()) missing.push("Responsable");
+  if (!String(payload.department || "").trim()) missing.push("Area");
+  if (cleanCurrency(payload.advanceCents) <= 0) missing.push("Valor solicitado / consignado");
+  if (!String(payload.depositSource || "").trim()) missing.push("Origen");
+  if (!String(payload.periodStart || "").trim()) missing.push("Fecha desde");
+  if (!String(payload.periodEnd || "").trim()) missing.push("Fecha hasta");
+  return missing;
+}
+
 async function nextSettlementCode(fundType: string) {
   const prefix = settlementPrefix(fundType);
   const db = getDb();
@@ -176,8 +189,9 @@ export async function POST(request: Request) {
     const fundCode = await nextSettlementCode(fundType);
     const periodStart = String(payload.periodStart || "");
     const periodEnd = String(payload.periodEnd || "");
-    if (requiresEstimatedDates(fundType) && (!periodStart || !periodEnd)) {
-      return Response.json({ error: "Las fechas desde y hasta son obligatorias para Viaticos y Proyecto." }, { status: 400 });
+    const missingFields = missingRequiredSettlementFields(payload);
+    if (missingFields.length) {
+      return Response.json({ error: `Campos obligatorios pendientes: ${missingFields.join(", ")}` }, { status: 400 });
     }
 
     await db.insert(settlements).values({
@@ -216,4 +230,4 @@ export async function POST(request: Request) {
   }
 }
 
-export { hydrateSettlement, cleanCurrency, cleanCurrencyCode, cleanExpense, assignReviewers, requiresEstimatedDates };
+export { hydrateSettlement, cleanCurrency, cleanCurrencyCode, cleanExpense, assignReviewers, requiresEstimatedDates, missingRequiredSettlementFields };
