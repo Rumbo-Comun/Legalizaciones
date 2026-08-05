@@ -118,8 +118,15 @@ const emptySettlement = (): Settlement => ({
 });
 
 function parseMoney(value: string) {
-  const numeric = Number(value.replace(/[^\d.-]/g, ""));
+  const numeric = Number(value.replace(/\D/g, ""));
   return Number.isFinite(numeric) ? Math.round(numeric * 100) : 0;
+}
+
+function formatMoneyInput(cents: number) {
+  if (!cents) return "";
+  return new Intl.NumberFormat("es-CO", {
+    maximumFractionDigits: 0,
+  }).format(Math.round(cents / 100));
 }
 
 function formatMoney(cents: number, currency: CurrencyCode = "COP") {
@@ -1304,7 +1311,7 @@ export default function Home() {
                   <input
                     inputMode="numeric"
                     readOnly={!canSave}
-                    value={draft.advanceCents ? draft.advanceCents / 100 : ""}
+                    value={formatMoneyInput(draft.advanceCents)}
                     onChange={(event) => updateDraft("advanceCents", parseMoney(event.target.value))}
                     placeholder="0"
                   />
