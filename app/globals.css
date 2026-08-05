@@ -502,6 +502,17 @@ label {
   gap: 10px;
 }
 
+.topbar,
+.section-title,
+.actions {
+  min-width: 0;
+}
+
+.actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .user-pill {
   align-items: center;
   background: var(--mint);
@@ -806,6 +817,8 @@ label {
   display: grid;
   gap: 10px;
   margin-top: 14px;
+  overflow-x: auto;
+  padding-bottom: 2px;
 }
 
 .empty-state {
@@ -824,6 +837,7 @@ label {
   display: grid;
   gap: 10px;
   grid-template-columns: 34px 126px 142px minmax(140px, 1fr) 112px minmax(180px, 1.2fr) 110px 110px 112px 112px;
+  min-width: 1180px;
   padding: 12px;
 }
 
@@ -1242,7 +1256,7 @@ label {
 .status-table {
   border: 1px solid var(--line);
   border-radius: 8px;
-  overflow: hidden;
+  overflow-x: auto;
 }
 
 .status-row {
@@ -1254,6 +1268,7 @@ label {
   display: grid;
   gap: 12px;
   grid-template-columns: minmax(220px, 1.3fr) 160px repeat(4, minmax(96px, 0.7fr)) minmax(260px, 1.2fr);
+  min-width: 1080px;
   min-height: 58px;
   padding: 12px 14px;
   text-align: left;
@@ -1657,18 +1672,30 @@ label {
 }
 
 @media (max-width: 1280px) {
-  .app-shell,
   .editor,
   .workflow-panel {
     grid-template-columns: 1fr;
   }
 
-  .crm-sidebar {
-    min-height: auto;
-    position: static;
+  .app-shell {
+    gap: 14px;
+    grid-template-columns: 230px minmax(0, 1fr);
+    padding: 18px;
   }
 
-  .crm-nav,
+  .crm-sidebar {
+    min-height: calc(100vh - 36px);
+    padding: 16px;
+  }
+
+  .crm-brand img {
+    max-width: 150px;
+  }
+
+  .crm-nav {
+    grid-template-columns: 1fr;
+  }
+
   .currency-grid,
   .pipeline-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1727,10 +1754,12 @@ label {
 
   .expense-row {
     grid-template-columns: 34px repeat(4, minmax(130px, 1fr));
+    min-width: 880px;
   }
 
   .status-row {
     grid-template-columns: minmax(220px, 1fr) 150px repeat(2, minmax(100px, 1fr)) minmax(240px, 1fr);
+    min-width: 760px;
   }
 
   .report-grid {
@@ -1748,6 +1777,56 @@ label {
   }
 }
 
+@media (max-width: 1100px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .crm-sidebar {
+    min-height: auto;
+    position: static;
+  }
+
+  .crm-sidebar,
+  .sidebar-summary {
+    align-self: stretch;
+  }
+
+  .crm-brand {
+    align-items: center;
+    grid-template-columns: auto minmax(0, 1fr);
+    justify-items: start;
+    text-align: left;
+  }
+
+  .crm-brand img {
+    max-width: 130px;
+  }
+
+  .crm-brand span {
+    grid-column: 2;
+  }
+
+  .crm-nav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .nav-group {
+    min-width: 0;
+  }
+
+  .sidebar-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .sidebar-currency + .sidebar-currency {
+    border-top: 0;
+    border-left: 1px solid rgba(255, 255, 255, 0.12);
+    padding-left: 10px;
+    padding-top: 0;
+  }
+}
+
 @media (max-width: 760px) {
   .app-shell {
     padding: 12px;
@@ -1756,6 +1835,20 @@ label {
   .topbar {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .actions {
+    justify-content: stretch;
+    width: 100%;
+  }
+
+  .actions > * {
+    flex: 1 1 100%;
+  }
+
+  .user-pill,
+  .menu-trigger {
+    width: 100%;
   }
 
   .login-shell {
@@ -1774,6 +1867,7 @@ label {
 
   .expense-row {
     grid-template-columns: 1fr;
+    min-width: 0;
   }
 
   .row-number,
@@ -1804,9 +1898,69 @@ label {
 
   .admin-stat-grid,
   .user-table-row,
-  .status-row,
   .report-row {
     grid-template-columns: 1fr;
+  }
+
+  .status-table {
+    border: 0;
+    display: grid;
+    gap: 10px;
+    overflow: visible;
+  }
+
+  .status-row {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    box-shadow: 0 10px 24px rgba(6, 29, 66, 0.07);
+    gap: 10px;
+    grid-template-columns: 1fr;
+    min-width: 0;
+  }
+
+  .status-row:not(.header) > span {
+    display: grid;
+    gap: 4px;
+  }
+
+  .status-row span:nth-child(5),
+  .status-row span:nth-child(6) {
+    display: grid;
+  }
+
+  .status-row:not(.header) > span::before {
+    color: var(--muted);
+    content: "";
+    font-size: 0.72rem;
+    font-weight: 800;
+  }
+
+  .status-row:not(.header) > span:nth-child(1)::before {
+    content: "Solicitud";
+  }
+
+  .status-row:not(.header) > span:nth-child(2)::before {
+    content: "Estado";
+  }
+
+  .status-row:not(.header) > span:nth-child(3)::before {
+    content: "Solicitado";
+  }
+
+  .status-row:not(.header) > span:nth-child(4)::before {
+    content: "Gastado";
+  }
+
+  .status-row:not(.header) > span:nth-child(5)::before {
+    content: "Disponible";
+  }
+
+  .status-row:not(.header) > span:nth-child(6)::before {
+    content: "Soportes";
+  }
+
+  .status-row:not(.header) > span:nth-child(7)::before {
+    content: "Acciones";
   }
 
   .user-table-row.header,
@@ -1819,6 +1973,24 @@ label {
   .currency-grid,
   .pipeline-grid {
     grid-template-columns: 1fr;
+  }
+
+  .crm-brand,
+  .sidebar-summary {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    text-align: center;
+  }
+
+  .crm-brand span {
+    grid-column: auto;
+  }
+
+  .sidebar-currency + .sidebar-currency {
+    border-left: 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    padding-left: 0;
+    padding-top: 8px;
   }
 
   .currency-card {
