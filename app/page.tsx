@@ -43,7 +43,7 @@ type ReviewComment = {
 };
 
 type CurrencyCode = "COP" | "USD";
-type StatusFilter = "all" | "active" | "pending" | "completed";
+type StatusFilter = "all" | "active" | "pending" | "completed" | "closed";
 
 type AppUser = {
   id: string;
@@ -298,8 +298,9 @@ export default function Home() {
       ["consignado", "registrando gastos", "solicitud ampliacion"].includes(record.status),
     ).length;
     const completed = records.filter((record) => record.status === "aprobado").length;
+    const closed = records.filter((record) => record.status === "enviado gerencia").length;
     const supportCount = records.reduce((sum, record) => sum + record.evidences.length, 0);
-    return { pending, active, completed, supportCount };
+    return { pending, active, completed, closed, supportCount };
   }, [records]);
   const filteredRecords = useMemo(() => {
     if (statusFilter === "all") return records;
@@ -308,6 +309,7 @@ export default function Home() {
       if (statusFilter === "active") {
         return ["consignado", "registrando gastos", "solicitud ampliacion"].includes(record.status);
       }
+      if (statusFilter === "closed") return record.status === "enviado gerencia";
       return record.status === "aprobado";
     });
   }, [records, statusFilter]);
@@ -318,7 +320,9 @@ export default function Home() {
         ? "En tramite"
         : statusFilter === "completed"
           ? "Aprobadas"
-          : "Todas";
+          : statusFilter === "closed"
+            ? "Cerradas"
+            : "Todas";
   const currencyStats = useMemo(() => {
     const stats: Record<CurrencyCode, { currency: CurrencyCode; requested: number; spent: number; returned: number; balance: number; count: number }> = {
       COP: { currency: "COP", requested: 0, spent: 0, returned: 0, balance: 0, count: 0 },
@@ -1357,6 +1361,17 @@ export default function Home() {
                 >
                   <span>Aprobadas</span>
                   <strong>{dashboardStats.completed}</strong>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStatusFilter("closed");
+                    setRequestsOpen(true);
+                    setActiveView("status");
+                  }}
+                >
+                  <span>Cerradas</span>
+                  <strong>{dashboardStats.closed}</strong>
                 </button>
               </div>
             </section>
