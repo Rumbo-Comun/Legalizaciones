@@ -1465,6 +1465,30 @@ label {
   gap: 6px;
 }
 
+.validation-modal {
+  max-width: 520px;
+}
+
+.validation-content {
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 8px;
+  color: #7c2d12;
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+}
+
+.validation-content ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.validation-content li {
+  font-weight: 800;
+  margin: 4px 0;
+}
+
 .activity-grid {
   display: grid;
   gap: 12px;

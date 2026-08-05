@@ -223,6 +223,7 @@ export default function Home() {
   const [activeId, setActiveId] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState("");
+  const [validationModal, setValidationModal] = useState<{ title: string; messages: string[] } | null>(null);
   const [uploading, setUploading] = useState("");
   const [pdfBusy, setPdfBusy] = useState(false);
   const [activeView, setActiveView] = useState<"dashboard" | "new" | "requestInfo" | "status" | "reports" | "admin">("dashboard");
@@ -476,20 +477,32 @@ export default function Home() {
   async function saveSettlement(event?: FormEvent, override: SettlementOverride = {}) {
     event?.preventDefault();
     if (!canSave) {
-      setNotice("Este usuario puede revisar y comentar, pero no guardar cambios.");
+      setValidationModal({
+        title: "Accion no permitida",
+        messages: ["Este usuario puede revisar y comentar, pero no guardar cambios."],
+      });
       return null;
     }
     const payload = { ...draft, ...override };
+    const missingFields: string[] = [];
     if (!payload.employee.trim()) {
-      setNotice("Ingresa el responsable de la consignacion.");
-      return null;
+      missingFields.push("Responsable");
     }
     if (payload.advanceCents <= 0) {
-      setNotice("Ingresa el valor solicitado para abrir el fondo.");
-      return null;
+      missingFields.push("Valor solicitado / consignado");
     }
     if (requiresEstimatedDates(payload.fundType) && (!payload.periodStart || !payload.periodEnd)) {
-      setNotice("Para Viaticos y Proyecto debes registrar fecha desde y fecha estimada de finalizacion.");
+      if (!payload.periodStart) missingFields.push("Fecha desde");
+      if (!payload.periodEnd) missingFields.push("Fecha estimada de finalizacion");
+    }
+    if (missingFields.length) {
+      setValidationModal({
+        title: "Campos obligatorios pendientes",
+        messages: [
+          "Para continuar debes diligenciar los siguientes campos:",
+          ...missingFields,
+        ],
+      });
       return null;
     }
 
@@ -1205,7 +1218,7 @@ export default function Home() {
           </div>
         </section>
 
-        <form className="editor" onSubmit={saveSettlement}>
+        <form className="editor" onSubmit={saveSettlement} noValidate>
           <section className="panel details-panel">
             <div className="section-title">
               <h2>{activeView === "requestInfo" ? "Informacion de la solicitud" : "1. Solicitud de consignacion"}</h2>
@@ -2018,6 +2031,28 @@ export default function Home() {
                 <button type="submit" className="save">Actualizar clave</button>
               </div>
             </form>
+          </div>
+        )}
+        {validationModal && (
+          <div className="modal-backdrop" role="presentation">
+            <section className="confirm-modal validation-modal" role="alertdialog" aria-modal="true" aria-labelledby="validation-title">
+              <h2 id="validation-title">{validationModal.title}</h2>
+              <div className="validation-content">
+                <p>{validationModal.messages[0]}</p>
+                {validationModal.messages.length > 1 && (
+                  <ul>
+                    {validationModal.messages.slice(1).map((message) => (
+                      <li key={message}>{message}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              <div className="modal-actions">
+                <button type="button" className="save" onClick={() => setValidationModal(null)}>
+                  Entendido
+                </button>
+              </div>
+            </section>
           </div>
         )}
       </section>
