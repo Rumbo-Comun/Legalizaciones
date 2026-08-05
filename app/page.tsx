@@ -249,6 +249,8 @@ export default function Home() {
   const [pdfBusy, setPdfBusy] = useState(false);
   const [activeView, setActiveView] = useState<"dashboard" | "new" | "requestInfo" | "status" | "reports" | "admin">("dashboard");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [requestSearch, setRequestSearch] = useState("");
   const [requestsOpen, setRequestsOpen] = useState(true);
   const [managementTarget, setManagementTarget] = useState<Settlement | null>(null);
   const [activityTarget, setActivityTarget] = useState<Settlement | null>(null);
@@ -303,16 +305,32 @@ export default function Home() {
     return { pending, active, completed, closed, supportCount };
   }, [records]);
   const filteredRecords = useMemo(() => {
-    if (statusFilter === "all") return records;
+    const query = requestSearch.trim().toLowerCase();
     return records.filter((record) => {
-      if (statusFilter === "pending") return record.status === "pendiente aprobacion";
-      if (statusFilter === "active") {
-        return ["consignado", "registrando gastos", "solicitud ampliacion"].includes(record.status);
+      if (statusFilter === "pending" && record.status !== "pendiente aprobacion") return false;
+      if (
+        statusFilter === "active" &&
+        !["consignado", "registrando gastos", "solicitud ampliacion"].includes(record.status)
+      ) {
+        return false;
       }
-      if (statusFilter === "closed") return record.status === "enviado gerencia";
-      return record.status === "aprobado";
+      if (statusFilter === "closed" && record.status !== "enviado gerencia") return false;
+      if (statusFilter === "completed" && record.status !== "aprobado") return false;
+      if (typeFilter !== "all" && record.fundType.toLowerCase() !== typeFilter) return false;
+      if (!query) return true;
+      return [
+        record.projectName,
+        record.employee,
+        record.fundCode,
+        record.fundType,
+        record.status,
+        record.department,
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(query);
     });
-  }, [records, statusFilter]);
+  }, [records, requestSearch, statusFilter, typeFilter]);
   const statusFilterLabel =
     statusFilter === "pending"
       ? "Pendientes aprobacion"
@@ -1891,12 +1909,49 @@ export default function Home() {
               <h2>Gestion de solicitudes</h2>
               <div className="status-filter">
                 <span>{statusFilterLabel}: {filteredRecords.length} registros</span>
-                {statusFilter !== "all" && (
-                  <button type="button" className="mini-action" onClick={() => setStatusFilter("all")}>
-                    Ver todas
+                {(statusFilter !== "all" || typeFilter !== "all" || requestSearch.trim()) && (
+                  <button
+                    type="button"
+                    className="mini-action"
+                    onClick={() => {
+                      setStatusFilter("all");
+                      setTypeFilter("all");
+                      setRequestSearch("");
+                    }}
+                  >
+                    Limpiar filtros
                   </button>
                 )}
               </div>
+            </div>
+            <div className="request-filters" aria-label="Filtros de gestion de solicitudes">
+              <label>
+                Buscar
+                <input
+                  value={requestSearch}
+                  onChange={(event) => setRequestSearch(event.target.value)}
+                  placeholder="Solicitud, responsable, ID o area"
+                />
+              </label>
+              <label>
+                Estado
+                <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}>
+                  <option value="all">Todos</option>
+                  <option value="active">En tramite</option>
+                  <option value="pending">Pendientes aprobacion</option>
+                  <option value="completed">Aprobadas</option>
+                  <option value="closed">Cerradas</option>
+                </select>
+              </label>
+              <label>
+                Tipo
+                <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
+                  <option value="all">Todos</option>
+                  <option value="caja menor">Caja menor</option>
+                  <option value="proyecto">Proyecto</option>
+                  <option value="viaticos">Viaticos</option>
+                </select>
+              </label>
             </div>
             {loading && <p className="muted">Cargando...</p>}
             {!loading && records.length === 0 && <div className="empty-state">Aun no hay solicitudes creadas.</div>}

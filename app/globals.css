@@ -477,6 +477,22 @@ label {
   gap: 10px;
 }
 
+.request-filters {
+  align-items: end;
+  background: #f8fbff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(260px, 1fr) minmax(170px, 220px) minmax(160px, 200px);
+  margin: 14px 0 12px;
+  padding: 12px;
+}
+
+.request-filters label {
+  margin: 0;
+}
+
 .topbar,
 .section-title,
 .actions,
@@ -1686,6 +1702,10 @@ label {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .request-filters {
+    grid-template-columns: 1fr 1fr;
+  }
+
   .history,
   .details-panel,
   .expense-panel,
@@ -1743,7 +1763,8 @@ label {
   }
 
   .summary-grid,
-  .form-grid {
+  .form-grid,
+  .request-filters {
     grid-template-columns: 1fr;
   }
 
