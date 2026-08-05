@@ -441,14 +441,22 @@ label {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-.pipeline-grid div {
+.pipeline-grid button {
   background: #f8fbff;
   border: 1px solid var(--line);
   border-radius: 8px;
+  cursor: pointer;
   display: grid;
   gap: 8px;
   min-height: 92px;
   padding: 14px;
+  text-align: left;
+}
+
+.pipeline-grid button:hover {
+  border-color: var(--blue);
+  box-shadow: 0 12px 24px rgba(8, 89, 178, 0.12);
+  transform: translateY(-1px);
 }
 
 .pipeline-grid span {
@@ -461,6 +469,12 @@ label {
 .pipeline-grid strong {
   color: var(--ink);
   font-size: 1.6rem;
+}
+
+.status-filter {
+  align-items: center;
+  display: flex;
+  gap: 10px;
 }
 
 .topbar,

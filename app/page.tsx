@@ -43,6 +43,7 @@ type ReviewComment = {
 };
 
 type CurrencyCode = "COP" | "USD";
+type StatusFilter = "all" | "active" | "pending" | "completed";
 
 type AppUser = {
   id: string;
@@ -247,6 +248,7 @@ export default function Home() {
   const [uploading, setUploading] = useState("");
   const [pdfBusy, setPdfBusy] = useState(false);
   const [activeView, setActiveView] = useState<"dashboard" | "new" | "requestInfo" | "status" | "reports" | "admin">("dashboard");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [requestsOpen, setRequestsOpen] = useState(true);
   const [managementTarget, setManagementTarget] = useState<Settlement | null>(null);
   const [activityTarget, setActivityTarget] = useState<Settlement | null>(null);
@@ -299,6 +301,24 @@ export default function Home() {
     const supportCount = records.reduce((sum, record) => sum + record.evidences.length, 0);
     return { pending, active, completed, supportCount };
   }, [records]);
+  const filteredRecords = useMemo(() => {
+    if (statusFilter === "all") return records;
+    return records.filter((record) => {
+      if (statusFilter === "pending") return record.status === "pendiente aprobacion";
+      if (statusFilter === "active") {
+        return ["consignado", "registrando gastos", "solicitud ampliacion"].includes(record.status);
+      }
+      return record.status === "aprobado";
+    });
+  }, [records, statusFilter]);
+  const statusFilterLabel =
+    statusFilter === "pending"
+      ? "Pendientes aprobacion"
+      : statusFilter === "active"
+        ? "En tramite"
+        : statusFilter === "completed"
+          ? "Aprobadas"
+          : "Todas";
   const currencyStats = useMemo(() => {
     const stats: Record<CurrencyCode, { currency: CurrencyCode; requested: number; spent: number; returned: number; balance: number; count: number }> = {
       COP: { currency: "COP", requested: 0, spent: 0, returned: 0, balance: 0, count: 0 },
@@ -1200,7 +1220,10 @@ export default function Home() {
                 <button
                   type="button"
                   className={activeView === "status" || activeView === "requestInfo" ? "active" : ""}
-                  onClick={() => setActiveView("status")}
+                  onClick={() => {
+                    setStatusFilter("all");
+                    setActiveView("status");
+                  }}
                 >
                   <span>Gestion de solicitudes</span>
                   <strong>{dashboardStats.pending}</strong>
@@ -1302,18 +1325,39 @@ export default function Home() {
                 <span>{records.length} solicitudes</span>
               </div>
               <div className="pipeline-grid">
-                <div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStatusFilter("active");
+                    setRequestsOpen(true);
+                    setActiveView("status");
+                  }}
+                >
                   <span>En tramite</span>
                   <strong>{dashboardStats.active}</strong>
-                </div>
-                <div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStatusFilter("pending");
+                    setRequestsOpen(true);
+                    setActiveView("status");
+                  }}
+                >
                   <span>Pendientes aprobacion</span>
                   <strong>{dashboardStats.pending}</strong>
-                </div>
-                <div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStatusFilter("completed");
+                    setRequestsOpen(true);
+                    setActiveView("status");
+                  }}
+                >
                   <span>Aprobadas</span>
                   <strong>{dashboardStats.completed}</strong>
-                </div>
+                </button>
               </div>
             </section>
           </>
@@ -1830,11 +1874,21 @@ export default function Home() {
           <section className="panel status-board">
             <div className="section-title">
               <h2>Gestion de solicitudes</h2>
-              <span>{records.length} registros</span>
+              <div className="status-filter">
+                <span>{statusFilterLabel}: {filteredRecords.length} registros</span>
+                {statusFilter !== "all" && (
+                  <button type="button" className="mini-action" onClick={() => setStatusFilter("all")}>
+                    Ver todas
+                  </button>
+                )}
+              </div>
             </div>
             {loading && <p className="muted">Cargando...</p>}
             {!loading && records.length === 0 && <div className="empty-state">Aun no hay solicitudes creadas.</div>}
-            {records.length > 0 && (
+            {!loading && records.length > 0 && filteredRecords.length === 0 && (
+              <div className="empty-state">No hay solicitudes para el filtro seleccionado.</div>
+            )}
+            {filteredRecords.length > 0 && (
               <div className="status-table">
                 <div className="status-row header">
                   <span>Solicitud</span>
@@ -1845,7 +1899,7 @@ export default function Home() {
                   <span>Soportes</span>
                   <span>Acciones</span>
                 </div>
-                {records.map((record) => {
+                {filteredRecords.map((record) => {
                   const spent = sumSpent(record.expenses);
                   const refunded = sumRefunded(record.expenses);
                   const netSpent = spent - refunded;
