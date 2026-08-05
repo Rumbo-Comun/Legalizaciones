@@ -165,16 +165,16 @@ label {
 }
 
 .login-shell::before {
-  background: url("/login-uscom-gastos.png") center / cover no-repeat;
+  background: url("/login-uscom-office.png") center / cover no-repeat;
   content: "";
   inset: 0;
-  opacity: 0.18;
+  opacity: 0.44;
   position: absolute;
   transform: scale(1.02);
 }
 
 .login-shell::after {
-  background: radial-gradient(circle at center, rgba(255, 255, 255, 0.34), rgba(237, 245, 251, 0.78));
+  background: radial-gradient(circle at center, rgba(255, 255, 255, 0.2), rgba(237, 245, 251, 0.7));
   content: "";
   inset: 0;
   position: absolute;
