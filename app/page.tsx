@@ -857,34 +857,52 @@ export default function Home() {
       const spent = sumSpent(saved.expenses);
       const refunded = sumRefunded(saved.expenses);
       const balance = fundBalance(saved);
-      let logoDataUrl = "";
+      let letterheadLogoDataUrl = "";
+      let letterheadFooterDataUrl = "";
 
       try {
-        const logoResponse = await fetch("/uscom-logo.png");
-        if (logoResponse.ok) logoDataUrl = await blobToDataUrl(await logoResponse.blob());
+        const logoResponse = await fetch("/membrete-uscom-logo.png");
+        if (logoResponse.ok) letterheadLogoDataUrl = await blobToDataUrl(await logoResponse.blob());
       } catch {
-        logoDataUrl = "";
+        letterheadLogoDataUrl = "";
+      }
+      try {
+        const footerResponse = await fetch("/membrete-uscom-footer.png");
+        if (footerResponse.ok) letterheadFooterDataUrl = await blobToDataUrl(await footerResponse.blob());
+      } catch {
+        letterheadFooterDataUrl = "";
       }
 
+      const contentTop = 112;
+      const contentBottom = pageHeight - 96;
       const ensureRoom = (height: number) => {
-        if (y + height > pageHeight - margin) {
+        if (y + height > contentBottom) {
           doc.addPage();
-          y = margin;
+          addLetterhead();
+          y = contentTop;
         }
       };
-      const addHeader = () => {
-        doc.setFillColor(8, 89, 178);
-        doc.rect(0, 0, pageWidth, 94, "F");
+      const addLetterhead = () => {
         doc.setFillColor(255, 255, 255);
-        doc.roundedRect(margin, 20, 150, 52, 6, 6, "F");
-        if (logoDataUrl) doc.addImage(logoDataUrl, "PNG", margin + 12, 31, 126, 28);
-        doc.setTextColor(255, 255, 255);
+        doc.rect(0, 0, pageWidth, pageHeight, "F");
+        if (letterheadLogoDataUrl) doc.addImage(letterheadLogoDataUrl, "PNG", margin, 24, 170, 46);
+        doc.setDrawColor(8, 89, 178);
+        doc.setLineWidth(1.2);
+        doc.line(margin, 84, pageWidth - margin, 84);
+        doc.setDrawColor(54, 168, 61);
+        doc.setLineWidth(0.8);
+        doc.line(margin, 88, pageWidth - margin, 88);
+        if (letterheadFooterDataUrl) doc.addImage(letterheadFooterDataUrl, "PNG", 0, pageHeight - 78, pageWidth, 68);
+        doc.setTextColor(7, 28, 62);
+      };
+      const addReportTitle = () => {
         doc.setFont("helvetica", "bold");
         doc.setFontSize(18);
-        doc.text("Informe de legalizacion de fondos", margin + 174, 40);
-        doc.setFontSize(11);
-        doc.text(saved.fundCode || saved.id, margin + 174, 60);
         doc.setTextColor(7, 28, 62);
+        doc.text("Informe de legalizacion de fondos", pageWidth - margin, 44, { align: "right" });
+        doc.setFontSize(10);
+        doc.setTextColor(75, 95, 125);
+        doc.text(saved.fundCode || saved.id, pageWidth - margin, 62, { align: "right" });
       };
       const addSectionTitle = (title: string) => {
         ensureRoom(34);
@@ -917,7 +935,8 @@ export default function Home() {
         y += Math.max(16, lines.length * 13);
       };
 
-      addHeader();
+      addLetterhead();
+      addReportTitle();
       doc.setFontSize(10);
       doc.setFont("helvetica", "normal");
       doc.setTextColor(75, 95, 125);
@@ -1014,7 +1033,8 @@ export default function Home() {
       }
 
       doc.addPage();
-      y = margin;
+      addLetterhead();
+      y = contentTop;
       doc.setFont("helvetica", "bold");
       doc.setFontSize(16);
       doc.setTextColor(7, 28, 62);
@@ -1034,34 +1054,53 @@ export default function Home() {
         y += 16;
         doc.setFont("helvetica", "normal");
 
-        if (!evidence.contentType.startsWith("image/")) {
-          doc.text("Archivo adjunto registrado. No es imagen, por eso no se incrusta en el PDF.", margin, y);
-          y += 24;
-          continue;
-        }
-
         try {
-          const response = await fetch(`/api/evidences/${evidence.id}`);
-          const blob = await response.blob();
-          const dataUrl = await blobToDataUrl(blob);
-          const size = await imageSize(dataUrl);
-          const maxWidth = pageWidth - margin * 2;
-          const maxHeight = pageHeight - margin * 2 - 40;
-          const ratio = Math.min(maxWidth / size.width, maxHeight / size.height, 1);
-          const width = size.width * ratio;
-          const height = size.height * ratio;
-          ensureRoom(height + 28);
-          doc.addImage(
-            dataUrl,
-            evidence.contentType.includes("png") ? "PNG" : "JPEG",
-            margin,
-            y,
-            width,
-            height,
-          );
-          y += height + 28;
+          const addVisualAttachment = async (dataUrl: string, imageType: "PNG" | "JPEG") => {
+            const size = await imageSize(dataUrl);
+            const maxWidth = pageWidth - margin * 2;
+            const maxHeight = contentBottom - contentTop - 20;
+            const ratio = Math.min(maxWidth / size.width, maxHeight / size.height, 1);
+            const width = size.width * ratio;
+            const height = size.height * ratio;
+            ensureRoom(height + 28);
+            doc.addImage(dataUrl, imageType, margin, y, width, height);
+            y += height + 28;
+          };
+
+          if (evidence.contentType.startsWith("image/")) {
+            const response = await fetch(`/api/evidences/${evidence.id}`);
+            const blob = await response.blob();
+            const dataUrl = await blobToDataUrl(blob);
+            await addVisualAttachment(dataUrl, evidence.contentType.includes("png") ? "PNG" : "JPEG");
+            continue;
+          }
+
+          if (evidence.contentType === "application/pdf") {
+            const response = await fetch(`/api/evidences/${evidence.id}/pages`);
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error ?? "No se pudo convertir el PDF adjunto.");
+            for (const page of data.pages ?? []) {
+              ensureRoom(40);
+              doc.setFont("helvetica", "normal");
+              doc.setFontSize(9);
+              doc.setTextColor(75, 95, 125);
+              doc.text(`Pagina ${page.page} del PDF adjunto`, margin, y);
+              y += 12;
+              await addVisualAttachment(page.dataUrl, "PNG");
+            }
+            if (data.truncated) {
+              ensureRoom(24);
+              doc.setTextColor(75, 95, 125);
+              doc.text("Este PDF tiene mas paginas. Se anexaron visualmente las primeras 8.", margin, y);
+              y += 22;
+            }
+            continue;
+          }
+
+          doc.text("Archivo adjunto registrado. No es imagen ni PDF visualizable.", margin, y);
+          y += 24;
         } catch {
-          doc.text("No se pudo incrustar esta imagen en el PDF.", margin, y);
+          doc.text("No se pudo incrustar visualmente este anexo en el PDF.", margin, y);
           y += 24;
         }
       }
