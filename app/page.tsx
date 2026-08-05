@@ -542,6 +542,14 @@ export default function Home() {
     );
   }
 
+  function canSendReportByEmail(record: Settlement) {
+    return Boolean(
+      canActOnRecord(record) &&
+        requiresEstimatedDates(record.fundType) &&
+        ["consignado", "registrando gastos", "solicitud ampliacion", "aprobado"].includes(record.status),
+    );
+  }
+
   function openRecord(record: Settlement, message?: string) {
     setDraft(normalizeSettlement(record));
     setActiveId(record.id);
@@ -695,6 +703,11 @@ export default function Home() {
 
   async function sendToManagement(record: Settlement) {
     if (!canActOnRecord(record)) return;
+    if (!requiresEstimatedDates(record.fundType)) {
+      setNotice("El cierre con envio de informe por correo aplica solo para Viaticos y Proyectos.");
+      setManagementTarget(null);
+      return;
+    }
     const closedRecord = { ...normalizeSettlement(record), status: "enviado gerencia" };
     const finalMessage = finalBalanceText(closedRecord);
     const response = await fetch(`/api/settlements/${record.id}`, {
@@ -1819,13 +1832,13 @@ export default function Home() {
             >
               {pdfBusy ? "Generando PDF..." : "Descargar informe PDF"}
             </button>
-            {hasConsignation && expensesEnabled && !draftClosed && canActOnRecord(draft) && (
+            {hasConsignation && expensesEnabled && !draftClosed && canSendReportByEmail(draft) && (
               <button
                 type="button"
                 className="close-legalization-button"
                 onClick={() => setManagementTarget(normalizeSettlement(draft))}
               >
-                Enviar informe y cerrar legalizacion
+                Enviar informe por correo y cerrar
               </button>
             )}
             {notice && <p className="notice">{notice}</p>}
@@ -2018,14 +2031,16 @@ export default function Home() {
                         >
                           Ver actividad
                         </button>
-                        <button
-                          type="button"
-                          className="mini-action primary-action"
-                          disabled={!canUseActions || recordClosed}
-                          onClick={() => setManagementTarget(normalizeSettlement(record))}
-                        >
-                          Enviar informe / cerrar
-                        </button>
+                        {requiresEstimatedDates(record.fundType) && !recordClosed && (
+                          <button
+                            type="button"
+                            className="mini-action primary-action"
+                            disabled={!canUseActions || !canSendReportByEmail(record)}
+                            onClick={() => setManagementTarget(normalizeSettlement(record))}
+                          >
+                            Enviar informe / cerrar
+                          </button>
+                        )}
                       </span>
                     </article>
                   );
@@ -2232,9 +2247,9 @@ export default function Home() {
         {managementTarget && (
           <div className="modal-backdrop" role="presentation">
             <section className="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="management-confirm-title">
-              <h2 id="management-confirm-title">Enviar informe y cerrar legalizacion</h2>
+              <h2 id="management-confirm-title">Enviar informe por correo y cerrar</h2>
               <p>
-                Advertencia: si envia el informe por correo a gerencia, esta legalizacion se cerrara y no podra subir mas soportes ni registrar nuevos gastos.
+                Advertencia: esta accion aplica para Viaticos y Proyectos. Si envia el informe por correo a gerencia, la legalizacion se cerrara y no podra subir mas soportes ni registrar nuevos gastos.
               </p>
               <div className="modal-summary">
                 <span>{managementTarget.projectName || managementTarget.fundCode || managementTarget.fundType}</span>
