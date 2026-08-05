@@ -1048,21 +1048,35 @@ export default function Home() {
       }
 
       for (const [index, evidence] of saved.evidences.entries()) {
-        ensureRoom(80);
-        doc.setFont("helvetica", "bold");
-        doc.text(`Anexo ${index + 1}: ${evidence.fileName}`, margin, y);
-        y += 16;
-        doc.setFont("helvetica", "normal");
+        const anexoTitle = `Anexo ${index + 1}: ${evidence.fileName}`;
 
         try {
-          const addVisualAttachment = async (dataUrl: string, imageType: "PNG" | "JPEG") => {
+          const addVisualAttachment = async (
+            title: string,
+            dataUrl: string,
+            imageType: "PNG" | "JPEG",
+            subtitle?: string,
+          ) => {
             const size = await imageSize(dataUrl);
             const maxWidth = pageWidth - margin * 2;
-            const maxHeight = contentBottom - contentTop - 20;
+            const titleHeight = subtitle ? 34 : 20;
+            const maxHeight = contentBottom - contentTop - titleHeight - 18;
             const ratio = Math.min(maxWidth / size.width, maxHeight / size.height, 1);
             const width = size.width * ratio;
             const height = size.height * ratio;
-            ensureRoom(height + 28);
+            ensureRoom(titleHeight + height + 28);
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(10);
+            doc.setTextColor(7, 28, 62);
+            doc.text(title, margin, y);
+            y += 14;
+            if (subtitle) {
+              doc.setFont("helvetica", "normal");
+              doc.setFontSize(9);
+              doc.setTextColor(75, 95, 125);
+              doc.text(subtitle, margin, y);
+              y += 12;
+            }
             doc.addImage(dataUrl, imageType, margin, y, width, height);
             y += height + 28;
           };
@@ -1071,7 +1085,7 @@ export default function Home() {
             const response = await fetch(`/api/evidences/${evidence.id}`);
             const blob = await response.blob();
             const dataUrl = await blobToDataUrl(blob);
-            await addVisualAttachment(dataUrl, evidence.contentType.includes("png") ? "PNG" : "JPEG");
+            await addVisualAttachment(anexoTitle, dataUrl, evidence.contentType.includes("png") ? "PNG" : "JPEG");
             continue;
           }
 
@@ -1080,13 +1094,7 @@ export default function Home() {
             const data = await response.json();
             if (!response.ok) throw new Error(data.error ?? "No se pudo convertir el PDF adjunto.");
             for (const page of data.pages ?? []) {
-              ensureRoom(40);
-              doc.setFont("helvetica", "normal");
-              doc.setFontSize(9);
-              doc.setTextColor(75, 95, 125);
-              doc.text(`Pagina ${page.page} del PDF adjunto`, margin, y);
-              y += 12;
-              await addVisualAttachment(page.dataUrl, "PNG");
+              await addVisualAttachment(anexoTitle, page.dataUrl, "PNG", `Pagina ${page.page} del PDF adjunto`);
             }
             if (data.truncated) {
               ensureRoom(24);
@@ -1097,9 +1105,25 @@ export default function Home() {
             continue;
           }
 
+          ensureRoom(44);
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(10);
+          doc.setTextColor(7, 28, 62);
+          doc.text(anexoTitle, margin, y);
+          y += 16;
+          doc.setFont("helvetica", "normal");
+          doc.setTextColor(75, 95, 125);
           doc.text("Archivo adjunto registrado. No es imagen ni PDF visualizable.", margin, y);
           y += 24;
         } catch {
+          ensureRoom(44);
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(10);
+          doc.setTextColor(7, 28, 62);
+          doc.text(anexoTitle, margin, y);
+          y += 16;
+          doc.setFont("helvetica", "normal");
+          doc.setTextColor(75, 95, 125);
           doc.text("No se pudo incrustar visualmente este anexo en el PDF.", margin, y);
           y += 24;
         }
