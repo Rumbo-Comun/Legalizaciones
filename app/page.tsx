@@ -136,6 +136,11 @@ function formatMoney(cents: number, currency: CurrencyCode = "COP") {
   }).format(Math.round(cents / 100))}`;
 }
 
+function sentenceCase(value: string) {
+  const normalized = String(value || "").trim().toLowerCase();
+  return normalized ? normalized.charAt(0).toUpperCase() + normalized.slice(1) : "";
+}
+
 function coerceCurrency(value: unknown): CurrencyCode {
   return String(value || "COP").toUpperCase() === "USD" ? "USD" : "COP";
 }
@@ -976,7 +981,7 @@ export default function Home() {
         doc.setFont("helvetica", "bold");
         doc.setFontSize(8);
         doc.setTextColor(75, 95, 125);
-        doc.text(label.toUpperCase(), x + 10, summaryY + 18);
+        doc.text(label, x + 10, summaryY + 18);
         doc.setFontSize(11);
         doc.setTextColor(index === 3 && balance >= 0 ? 0 : 7, index === 3 && balance >= 0 ? 119 : 28, index === 3 && balance >= 0 ? 95 : 62);
         doc.text(value, x + 10, summaryY + 40);
@@ -1503,7 +1508,7 @@ export default function Home() {
           <section className="panel details-panel">
             <div className="section-title">
               <h2>{activeView === "requestInfo" ? "Informacion de la solicitud" : "1. Solicitud de consignacion"}</h2>
-              <span className={`request-status ${draft.status.replaceAll(" ", "-")}`}>{draft.status}</span>
+              <span className={`request-status ${draft.status.replaceAll(" ", "-")}`}>{sentenceCase(draft.status)}</span>
             </div>
 
             <div className="form-grid">
@@ -2073,7 +2078,7 @@ export default function Home() {
                         <strong>{record.projectName || record.fundCode || record.fundType}</strong>
                         <small>{record.employee || "Sin responsable"} · {record.fundType}</small>
                       </span>
-                      <span className={`request-status ${record.status.replaceAll(" ", "-")}`}>{record.status}</span>
+                      <span className={`request-status ${record.status.replaceAll(" ", "-")}`}>{sentenceCase(record.status)}</span>
                       <span>{formatMoney(record.advanceCents, record.currency)}</span>
                       <span>{formatMoney(netSpent, record.currency)}</span>
                       <span className={balance < 0 ? "negative" : "positive"}>{formatMoney(Math.abs(balance), record.currency)}</span>
@@ -2339,7 +2344,7 @@ export default function Home() {
                   <h2 id="activity-title">Actividad de la solicitud</h2>
                   <span>{activityTarget.projectName || activityTarget.fundCode || activityTarget.fundType}</span>
                 </div>
-                <span className={`request-status ${activityTarget.status.replaceAll(" ", "-")}`}>{activityTarget.status}</span>
+                <span className={`request-status ${activityTarget.status.replaceAll(" ", "-")}`}>{sentenceCase(activityTarget.status)}</span>
               </div>
 
               <div className="activity-grid">

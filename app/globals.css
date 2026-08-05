@@ -409,7 +409,6 @@ label {
   color: var(--muted);
   font-size: 0.74rem;
   font-weight: 800;
-  text-transform: uppercase;
 }
 
 .currency-card strong {
@@ -463,7 +462,6 @@ label {
   color: var(--muted);
   font-size: 0.78rem;
   font-weight: 800;
-  text-transform: uppercase;
 }
 
 .pipeline-grid strong {
@@ -586,7 +584,6 @@ label {
   font-weight: 800;
   letter-spacing: 0;
   margin: 0 0 6px;
-  text-transform: uppercase;
 }
 
 .primary,
@@ -738,7 +735,6 @@ label {
   color: var(--muted);
   font-size: 0.78rem;
   font-weight: 800;
-  text-transform: uppercase;
 }
 
 .metric strong {
@@ -1192,7 +1188,6 @@ label {
   font-size: 0.75rem;
   font-weight: 800;
   letter-spacing: 0;
-  text-transform: uppercase;
 }
 
 .user-table-row > span:first-child {
@@ -1275,7 +1270,6 @@ label {
   font-size: 0.75rem;
   font-weight: 800;
   min-height: 42px;
-  text-transform: uppercase;
 }
 
 .status-row:not(.header):hover {
@@ -1408,7 +1402,6 @@ label {
   color: var(--blue-dark);
   font-size: 0.75rem;
   font-weight: 800;
-  text-transform: uppercase;
 }
 
 .report-row strong {
@@ -1434,7 +1427,6 @@ label {
   color: var(--muted);
   font-size: 0.78rem;
   font-weight: 800;
-  text-transform: uppercase;
 }
 
 .report-side strong {
