@@ -281,6 +281,8 @@ export default function Home() {
   const canSubmitForApproval = canEditRequestInfo && (!activeId || draft.status === "borrador");
   const canApproveConsignation = canReviewFund && isOttoUser && draft.status === "pendiente aprobacion";
   const canAttachSupport = !draftClosed && (canEdit || canReviewFund);
+  const consignationSupport = draft.evidences.find((evidence) => !evidence.expenseId);
+  const hasConsignationSupport = Boolean(consignationSupport);
   const canSave = !draftClosed && (canEdit || canReviewFund);
   const canAdmin = currentUser?.role === "admin";
   const canManageAccess = canAdmin || isOttoUser;
@@ -619,6 +621,10 @@ export default function Home() {
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file) return;
+    if (!expenseId && hasConsignationSupport) {
+      setNotice("El soporte de consignacion ya fue cargado.");
+      return;
+    }
     if (!canAttachSupport) {
       setNotice("Este usuario no puede cargar soportes en este fondo.");
       return;
@@ -1772,9 +1778,14 @@ export default function Home() {
           <section className="panel balance-panel">
             <div className="section-title">
               <h2>Saldo del fondo</h2>
-              <label className="upload">
-                {uploading === "general" ? "Subiendo..." : "Soporte consignacion"}
-                <input type="file" accept="image/*,.pdf" disabled={!canAttachSupport} onChange={(event) => uploadEvidence(event, null)} />
+              <label className={`upload ${hasConsignationSupport ? "support-loaded" : ""}`}>
+                {hasConsignationSupport ? "Soporte consignacion cargado" : uploading === "general" ? "Subiendo..." : "Soporte consignacion"}
+                <input
+                  type="file"
+                  accept="image/*,.pdf"
+                  disabled={!canAttachSupport || hasConsignationSupport}
+                  onChange={(event) => uploadEvidence(event, null)}
+                />
               </label>
             </div>
             <div className="calc-list">

@@ -877,6 +877,13 @@ label {
   display: none;
 }
 
+.upload.support-loaded {
+  background: #dcfce7;
+  border-color: #22c55e;
+  color: #047857;
+  cursor: default;
+}
+
 .evidence-strip {
   display: flex;
   flex-wrap: wrap;
