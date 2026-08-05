@@ -132,6 +132,11 @@ function coerceCurrency(value: unknown): CurrencyCode {
   return String(value || "COP").toUpperCase() === "USD" ? "USD" : "COP";
 }
 
+function requiresEstimatedDates(fundType: string) {
+  const normalized = fundType.toLowerCase();
+  return normalized.includes("viatico") || normalized.includes("proyecto");
+}
+
 function normalizeSettlement(record: Settlement): Settlement {
   return {
     ...record,
@@ -150,6 +155,13 @@ function sumRefunded(expenses: Expense[]) {
 
 function fundBalance(record: Pick<Settlement, "advanceCents" | "cashReturnedCents" | "expenses">) {
   return record.advanceCents - sumSpent(record.expenses) + sumRefunded(record.expenses) - record.cashReturnedCents;
+}
+
+function finalBalanceText(record: Settlement) {
+  const balance = fundBalance(record);
+  if (balance > 0) return `Usted debe devolver ${formatMoney(balance, record.currency)}.`;
+  if (balance < 0) return `Usted tiene un saldo a favor de ${formatMoney(Math.abs(balance), record.currency)}.`;
+  return "La legalizacion queda en cero, sin saldo por devolver ni saldo a favor.";
 }
 
 function parseUtcTimestamp(value: string) {
@@ -476,6 +488,10 @@ export default function Home() {
       setNotice("Ingresa el valor solicitado para abrir el fondo.");
       return null;
     }
+    if (requiresEstimatedDates(payload.fundType) && (!payload.periodStart || !payload.periodEnd)) {
+      setNotice("Para Viaticos y Proyecto debes registrar fecha desde y fecha estimada de finalizacion.");
+      return null;
+    }
 
     const method = activeId ? "PUT" : "POST";
     const url = activeId ? `/api/settlements/${activeId}` : "/api/settlements";
@@ -574,6 +590,7 @@ export default function Home() {
   async function sendToManagement(record: Settlement) {
     if (!canActOnRecord(record)) return;
     const closedRecord = { ...normalizeSettlement(record), status: "enviado gerencia" };
+    const finalMessage = finalBalanceText(closedRecord);
     const response = await fetch(`/api/settlements/${record.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -588,14 +605,14 @@ export default function Home() {
     await fetch(`/api/settlements/${record.id}/comments`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ comment: "Solicitud enviada a gerencia. Se cierra la actividad para nuevos soportes y gastos." }),
+      body: JSON.stringify({ comment: `Solicitud enviada a gerencia. Se cierra la actividad para nuevos soportes y gastos. ${finalMessage}` }),
     });
 
     const nextSettlement = normalizeSettlement(data.settlement);
     setDraft(nextSettlement);
     setActiveId(nextSettlement.id);
     setManagementTarget(null);
-    setNotice("Solicitud enviada a gerencia y cerrada para nuevos soportes.");
+    setNotice(`Solicitud enviada a gerencia. ${finalMessage}`);
     await loadRecords();
   }
 
@@ -1292,19 +1309,21 @@ export default function Home() {
                 />
               </label>
               <label>
-                Desde opcional
+                {requiresEstimatedDates(draft.fundType) ? "Desde requerido" : "Desde opcional"}
                 <input
                   type="date"
                   readOnly={!canEdit}
+                  required={requiresEstimatedDates(draft.fundType)}
                   value={draft.periodStart}
                   onChange={(event) => updateDraft("periodStart", event.target.value)}
                 />
               </label>
               <label>
-                Hasta opcional
+                {requiresEstimatedDates(draft.fundType) ? "Hasta requerido" : "Hasta opcional"}
                 <input
                   type="date"
                   readOnly={!canEdit}
+                  required={requiresEstimatedDates(draft.fundType)}
                   value={draft.periodEnd}
                   onChange={(event) => updateDraft("periodEnd", event.target.value)}
                 />
@@ -1886,6 +1905,7 @@ export default function Home() {
               <div className="modal-summary">
                 <span>{managementTarget.projectName || managementTarget.fundCode || managementTarget.fundType}</span>
                 <strong>{formatMoney(managementTarget.advanceCents, managementTarget.currency)}</strong>
+                <p>{finalBalanceText(managementTarget)}</p>
               </div>
               <div className="modal-actions">
                 <button type="button" className="ghost" onClick={() => setManagementTarget(null)}>

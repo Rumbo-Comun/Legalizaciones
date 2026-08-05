@@ -23,15 +23,7 @@ Abrir:
 http://127.0.0.1:3020
 ```
 
-Usuarios locales:
-
-```text
-proyectos@uscom.net.co / andres123
-defensa@uscom.net.co / william123
-analista@uscom.net.co / felipe123
-canales@uscom.net.co / otto123
-admin@local / admin123
-```
+Los usuarios se administran desde el panel `Administrador` dentro de la aplicacion.
 
 ## Variables de entorno
 
@@ -41,6 +33,7 @@ Copiar `.env.example` y configurar en Coolify:
 APP_BASE_URL=https://tu-url-de-coolify
 MAIL_FROM=Legalizaciones USCOM <proyectos@uscom.net.co>
 RESEND_API_KEY=tu_api_key_de_resend
+CRON_SECRET=un_secreto_largo_para_tareas_programadas
 DATA_DIR=/app/data
 ```
 
@@ -70,6 +63,16 @@ Opcion recomendada:
 Ese volumen conserva la base SQLite (`legalizaciones.sqlite`) y los soportes cargados en `evidencias/`.
 
 El contenedor arranca con `npm run start`, que ejecuta `next start` en Node.js. Coolify no necesita Wrangler ni Cloudflare Workers.
+
+## Alertas automaticas
+
+Crear en Coolify una tarea programada diaria que llame:
+
+```text
+https://tu-dominio/api/reminders/legalization?secret=TU_CRON_SECRET
+```
+
+La tarea envia alertas durante los dias 1, 2 y 3 posteriores a la fecha estimada de finalizacion para solicitudes de tipo `Viaticos` o `Proyecto` que no hayan sido cerradas/legalizadas.
 
 ## Comandos
 

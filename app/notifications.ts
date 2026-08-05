@@ -197,7 +197,12 @@ export async function notifyApprovalRequest(settlement: SettlementForMail, revie
   await logNotification(settlement.id, `Correo de aprobacion enviado a ${recipients.join(", ")} desde ${from}.`);
 }
 
-export async function notifyManagementSubmission(settlement: SettlementForMail, reviewers: Reviewer[], requester?: Reviewer) {
+export async function notifyManagementSubmission(
+  settlement: SettlementForMail,
+  reviewers: Reviewer[],
+  requester?: Reviewer,
+  details?: { balanceCents?: number },
+) {
   const recipients = reviewers
     .map((reviewer) => reviewer.email)
     .filter((email) => email && !email.endsWith("@local"));
@@ -211,6 +216,14 @@ export async function notifyManagementSubmission(settlement: SettlementForMail, 
   const from = requesterFrom(requester) || getRuntimeValue("MAIL_FROM") || "Legalizaciones USCOM <noreply@uscom.net.co>";
   const baseUrl = getRuntimeValue("APP_BASE_URL") || fallbackBaseUrl;
   const openUrl = normalizeAppUrl(baseUrl);
+  const finalBalance =
+    typeof details?.balanceCents === "number"
+      ? details.balanceCents > 0
+        ? `Debe devolver ${formatMoney(details.balanceCents, settlement.currency)}`
+        : details.balanceCents < 0
+          ? `Saldo a favor ${formatMoney(Math.abs(details.balanceCents), settlement.currency)}`
+          : "Saldo final en cero"
+      : "-";
 
   if (!apiKey) {
     await logNotification(
@@ -239,6 +252,7 @@ export async function notifyManagementSubmission(settlement: SettlementForMail, 
               ${detailRow("Proyecto / objeto", settlement.projectName)}
               ${detailRow("ID solicitud", settlement.fundCode)}
               ${detailRow("Valor", formatMoney(settlement.advanceCents, settlement.currency), true)}
+              ${detailRow("Resultado final", finalBalance, true)}
               ${detailRow("Estado", settlement.status)}
             </table>
             <table role="presentation" cellpadding="0" cellspacing="0">
@@ -379,6 +393,105 @@ export async function notifyTopUpRequest(
   }
 
   await logNotification(settlement.id, `Correo de ampliacion enviado a ${recipients.join(", ")} desde ${from}.`);
+}
+
+export async function notifyLegalizationOverdue(
+  settlement: SettlementForMail,
+  recipientsInput: Reviewer[],
+  details: { day: number; balanceCents: number },
+) {
+  const recipients = [...new Set(recipientsInput.map((item) => item.email).filter((email) => email && !email.endsWith("@local")))];
+
+  if (!recipients.length) {
+    await logNotification(settlement.id, "Recordatorio de legalizacion pendiente: no hay correos reales configurados.");
+    return false;
+  }
+
+  const apiKey = getRuntimeValue("RESEND_API_KEY");
+  const from = getRuntimeValue("MAIL_FROM") || "Legalizaciones USCOM <noreply@uscom.net.co>";
+  const baseUrl = getRuntimeValue("APP_BASE_URL") || fallbackBaseUrl;
+  const openUrl = normalizeAppUrl(baseUrl);
+  const requestId = settlement.fundCode || settlement.id;
+  const balanceLabel =
+    details.balanceCents > 0
+      ? `Valor pendiente por legalizar/devolver: ${formatMoney(details.balanceCents, settlement.currency)}`
+      : details.balanceCents < 0
+        ? `Saldo a favor reportado: ${formatMoney(Math.abs(details.balanceCents), settlement.currency)}`
+        : "La legalizacion no presenta saldo pendiente, pero requiere cierre formal.";
+
+  if (!apiKey) {
+    await logNotification(
+      settlement.id,
+      `Recordatorio de legalizacion pendiente para ${recipients.join(", ")}. Falta configurar RESEND_API_KEY en Coolify.`,
+    );
+    return false;
+  }
+
+  const subject = `Alerta de legalizacion vencida dia ${details.day}: ${requestId}`;
+  const html = `
+    <div style="margin:0; padding:24px 12px; background:#f3f7fb; font-family:Arial, Helvetica, sans-serif; color:#111827;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:680px; margin:0 auto; background:#ffffff; border:1px solid #dbe5ef; border-radius:8px; overflow:hidden;">
+        <tr>
+          <td style="background:#b42318; color:#ffffff; padding:24px 28px; text-align:center;">
+            <h1 style="font-size:24px; margin:0;">Alerta de legalizacion pendiente</h1>
+            <p style="font-size:14px; margin:8px 0 0; opacity:.94;">Dia ${details.day} posterior a la fecha estimada de finalizacion</p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:26px 28px;">
+            <p style="font-size:15px; line-height:1.55; margin:0 0 16px;">
+              La solicitud <strong>${escapeHtml(requestId)}</strong> se encuentra pendiente de legalizacion despues de la fecha estimada de finalizacion.
+            </p>
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse; border:1px solid #e2e8f0; margin:0 0 18px;">
+              ${detailRow("Responsable", settlement.employee)}
+              ${detailRow("Tipo", settlement.fundType)}
+              ${detailRow("Proyecto / objeto", settlement.projectName)}
+              ${detailRow("ID solicitud", requestId)}
+              ${detailRow("Fecha estimada final", settlement.periodEnd)}
+              ${detailRow("Estado", settlement.status)}
+              ${detailRow("Saldo", balanceLabel, true)}
+            </table>
+            <div style="background:#fff4e5; border:1px solid #ffd7a8; border-radius:8px; color:#7a3b00; font-size:14px; line-height:1.55; margin:0 0 18px; padding:14px 16px;">
+              Importante: si la legalizacion no se realiza oportunamente, no se podra realizar el pago de nomina y/o se podran aplicar descuentos por el valor no legalizado.
+            </div>
+            <table role="presentation" cellpadding="0" cellspacing="0">
+              <tr>
+                <td bgcolor="#075eb8" style="border-radius:6px;">
+                  <a href="${escapeHtml(openUrl)}" target="_blank" style="display:inline-block; color:#ffffff; font-size:14px; font-weight:800; padding:14px 22px; text-decoration:none;">Abrir legalizacion</a>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+        <tr>
+          <td style="background:#f8fafc; color:#7a8797; font-size:12px; padding:16px 28px; text-align:center;">
+            Sistema de Gestion USCOM SAS
+          </td>
+        </tr>
+      </table>
+    </div>
+  `;
+
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ from, to: recipients, subject, html }),
+  });
+
+  if (!response.ok) {
+    const detail = await response.text();
+    await logNotification(
+      settlement.id,
+      `No se pudo enviar recordatorio de legalizacion a ${recipients.join(", ")}. Key usada: ${apiKeyFingerprint(apiKey)}. Respuesta proveedor: ${detail}`,
+    );
+    return false;
+  }
+
+  await logNotification(settlement.id, `Recordatorio de legalizacion dia ${details.day} enviado a ${recipients.join(", ")}.`);
+  return true;
 }
 
 export async function notifyPasswordReset(user: Reviewer, token: string) {

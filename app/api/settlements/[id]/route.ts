@@ -1,12 +1,18 @@
 import { eq } from "drizzle-orm";
 import { getDb } from "../../../../db";
 import { evidences, expenses, settlementAccess, settlements } from "../../../../db/schema";
-import { assignReviewers, cleanCurrency, cleanCurrencyCode, cleanExpense, hydrateSettlement } from "../route";
+import { assignReviewers, cleanCurrency, cleanCurrencyCode, cleanExpense, hydrateSettlement, requiresEstimatedDates } from "../route";
 import { requireUser } from "../../../auth";
 import { notifyApprovalRequest, notifyManagementSubmission, notifyTopUpRequest } from "../../../notifications";
 import { deleteEvidenceFile } from "../../../storage";
 
 type RouteContext = { params: Promise<{ id: string }> };
+
+function finalBalanceCents(expenseRows: ReturnType<typeof cleanExpense>[], advanceCents: number, cashReturnedCents: number) {
+  const spent = expenseRows.reduce((sum, expense) => sum + (expense.amountCents ?? 0), 0);
+  const refunded = expenseRows.reduce((sum, expense) => sum + (expense.refundCents ?? 0), 0);
+  return advanceCents - spent + refunded - cashReturnedCents;
+}
 
 export async function PUT(request: Request, context: RouteContext) {
   const { user, response } = await requireUser(request);
@@ -22,20 +28,26 @@ export async function PUT(request: Request, context: RouteContext) {
     if (!current || (user.role !== "admin" && current.ownerId !== user.id && !canReview)) {
       return Response.json({ error: "No autorizado" }, { status: 403 });
     }
+    const nextFundType = String(payload.fundType || "caja menor");
+    const nextPeriodStart = String(payload.periodStart || "");
+    const nextPeriodEnd = String(payload.periodEnd || "");
+    if (requiresEstimatedDates(nextFundType) && (!nextPeriodStart || !nextPeriodEnd)) {
+      return Response.json({ error: "Las fechas desde y hasta son obligatorias para Viaticos y Proyecto." }, { status: 400 });
+    }
 
     await db
       .update(settlements)
       .set({
         employee: String(payload.employee || "").trim(),
         department: String(payload.department || ""),
-        fundCode: String(payload.fundCode || ""),
-        fundType: String(payload.fundType || "caja menor"),
+        fundCode: current.fundCode,
+        fundType: nextFundType,
         projectName: String(payload.projectName || ""),
         depositDate: String(payload.depositDate || ""),
         depositReference: String(payload.depositReference || ""),
         depositSource: String(payload.depositSource || ""),
-        periodStart: String(payload.periodStart || ""),
-        periodEnd: String(payload.periodEnd || ""),
+        periodStart: nextPeriodStart,
+        periodEnd: nextPeriodEnd,
         status: String(payload.status || "borrador"),
         currency: cleanCurrencyCode(payload.currency),
         advanceCents: cleanCurrency(payload.advanceCents),
@@ -55,7 +67,18 @@ export async function PUT(request: Request, context: RouteContext) {
     if (nextStatus === "enviado gerencia" && current.status !== nextStatus) {
       const reviewerRows = await assignReviewers(id);
       const [settlement] = await db.select().from(settlements).where(eq(settlements.id, id));
-      if (settlement) await notifyManagementSubmission(settlement, reviewerRows, user);
+      const submittedExpenses = (payload.expenses ?? []).map((expense: unknown) =>
+        cleanExpense(expense as Parameters<typeof cleanExpense>[0], id),
+      );
+      if (settlement) {
+        await notifyManagementSubmission(settlement, reviewerRows, user, {
+          balanceCents: finalBalanceCents(
+            submittedExpenses,
+            cleanCurrency(payload.advanceCents),
+            cleanCurrency(payload.cashReturnedCents),
+          ),
+        });
+      }
     }
     if (nextStatus === "solicitud ampliacion" && (current.status !== nextStatus || payload.topUpAmountCents)) {
       const reviewerRows = await assignReviewers(id);

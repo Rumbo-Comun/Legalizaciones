@@ -58,6 +58,11 @@ function settlementPrefix(fundType: string) {
   return "USC-CM";
 }
 
+function requiresEstimatedDates(fundType: string) {
+  const normalized = fundType.toLowerCase();
+  return normalized.includes("viatico") || normalized.includes("proyecto");
+}
+
 async function nextSettlementCode(fundType: string) {
   const prefix = settlementPrefix(fundType);
   const db = getDb();
@@ -169,6 +174,11 @@ export async function POST(request: Request) {
     const db = getDb();
     const fundType = String(payload.fundType || "Caja menor");
     const fundCode = await nextSettlementCode(fundType);
+    const periodStart = String(payload.periodStart || "");
+    const periodEnd = String(payload.periodEnd || "");
+    if (requiresEstimatedDates(fundType) && (!periodStart || !periodEnd)) {
+      return Response.json({ error: "Las fechas desde y hasta son obligatorias para Viaticos y Proyecto." }, { status: 400 });
+    }
 
     await db.insert(settlements).values({
       id,
@@ -180,8 +190,8 @@ export async function POST(request: Request) {
       depositDate: String(payload.depositDate || ""),
       depositReference: String(payload.depositReference || ""),
       depositSource: String(payload.depositSource || ""),
-      periodStart: String(payload.periodStart || ""),
-      periodEnd: String(payload.periodEnd || ""),
+      periodStart,
+      periodEnd,
       status: String(payload.status || "borrador"),
       ownerId: user.id,
       currency: cleanCurrencyCode(payload.currency),
@@ -206,4 +216,4 @@ export async function POST(request: Request) {
   }
 }
 
-export { hydrateSettlement, cleanCurrency, cleanCurrencyCode, cleanExpense, assignReviewers };
+export { hydrateSettlement, cleanCurrency, cleanCurrencyCode, cleanExpense, assignReviewers, requiresEstimatedDates };
