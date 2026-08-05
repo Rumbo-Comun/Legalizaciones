@@ -1463,6 +1463,35 @@ label {
   color: var(--ink);
 }
 
+.reviewer-alert {
+  max-width: 560px;
+}
+
+.review-alert-list {
+  gap: 8px;
+}
+
+.review-alert-list button {
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  cursor: pointer;
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.review-alert-list button:hover {
+  border-color: var(--blue);
+  box-shadow: 0 8px 18px rgba(8, 89, 178, 0.12);
+}
+
+.review-alert-list small {
+  color: var(--teal);
+  font-weight: 800;
+}
+
 .modal-actions {
   display: flex;
   gap: 10px;

@@ -250,6 +250,7 @@ export default function Home() {
   const [requestsOpen, setRequestsOpen] = useState(true);
   const [managementTarget, setManagementTarget] = useState<Settlement | null>(null);
   const [activityTarget, setActivityTarget] = useState<Settlement | null>(null);
+  const [reviewAlertDismissed, setReviewAlertDismissed] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
@@ -265,13 +266,16 @@ export default function Home() {
   const hasConsignation = Boolean(activeId);
   const draftClosed = draft.status === "enviado gerencia";
   const canEdit = Boolean(currentUser && !draftClosed && (currentUser.role === "admin" || draft.ownerId === currentUser.id || !activeId));
+  const requestInfoLocked = Boolean(activeId && draft.status !== "borrador");
+  const canEditRequestInfo = Boolean(canEdit && !requestInfoLocked);
   const canReviewFund = Boolean(
     currentUser &&
       (currentUser.role === "admin" ||
         (currentUser.role === "revisor" && (draft.access ?? []).some((access) => access.userId === currentUser.id))),
   );
   const isOttoUser = Boolean(currentUser?.name.toUpperCase().includes("OTTO"));
-  const canApproveConsignation = canReviewFund && isOttoUser;
+  const canSubmitForApproval = canEditRequestInfo && (!activeId || draft.status === "borrador");
+  const canApproveConsignation = canReviewFund && isOttoUser && draft.status === "pendiente aprobacion";
   const canAttachSupport = !draftClosed && (canEdit || canReviewFund);
   const canSave = !draftClosed && (canEdit || canReviewFund);
   const canAdmin = currentUser?.role === "admin";
@@ -327,6 +331,15 @@ export default function Home() {
     }
     return [...categories.values()].sort((left, right) => right.amount - left.amount);
   }, [records]);
+  const pendingReviewRecords = useMemo(() => {
+    if (!currentUser || !isOttoUser) return [];
+    return records.filter(
+      (record) =>
+        record.status === "pendiente aprobacion" &&
+        (currentUser.role === "admin" || (record.access ?? []).some((access) => access.userId === currentUser.id)),
+    );
+  }, [currentUser, isOttoUser, records]);
+  const showReviewAlert = pendingReviewRecords.length > 0 && !reviewAlertDismissed;
 
   useEffect(() => {
     void loadMe();
@@ -662,11 +675,13 @@ export default function Home() {
   }
 
   async function submitForApproval() {
+    if (!canSubmitForApproval) return;
     const saved = await saveSettlement(undefined, { status: "pendiente aprobacion" });
     if (saved) setNotice("Solicitud enviada a aprobacion. Los revisores autorizados ya pueden verla.");
   }
 
   async function approveConsignation() {
+    if (!canApproveConsignation) return;
     const saved = await saveSettlement(undefined, { status: "consignado" });
     if (saved) setNotice("Consignacion aprobada. Ya se pueden registrar gastos.");
   }
@@ -776,79 +791,152 @@ export default function Home() {
       const pageWidth = doc.internal.pageSize.getWidth();
       const pageHeight = doc.internal.pageSize.getHeight();
       const margin = 42;
-      let y = margin;
+      const contentWidth = pageWidth - margin * 2;
+      let y = 124;
       const spent = sumSpent(saved.expenses);
       const refunded = sumRefunded(saved.expenses);
       const balance = fundBalance(saved);
+      let logoDataUrl = "";
 
-      const addLine = (label: string, value: string) => {
-        doc.setFont("helvetica", "bold");
-        doc.text(label, margin, y);
-        doc.setFont("helvetica", "normal");
-        doc.text(value || "-", margin + 160, y);
-        y += 18;
-      };
-      const addWrapped = (text: string, x: number, maxWidth: number) => {
-        const lines = doc.splitTextToSize(text || "-", maxWidth);
-        doc.text(lines, x, y);
-        y += Math.max(16, lines.length * 13);
-      };
+      try {
+        const logoResponse = await fetch("/uscom-logo.png");
+        if (logoResponse.ok) logoDataUrl = await blobToDataUrl(await logoResponse.blob());
+      } catch {
+        logoDataUrl = "";
+      }
+
       const ensureRoom = (height: number) => {
         if (y + height > pageHeight - margin) {
           doc.addPage();
           y = margin;
         }
       };
+      const addHeader = () => {
+        doc.setFillColor(8, 89, 178);
+        doc.rect(0, 0, pageWidth, 94, "F");
+        doc.setFillColor(255, 255, 255);
+        doc.roundedRect(margin, 20, 150, 52, 6, 6, "F");
+        if (logoDataUrl) doc.addImage(logoDataUrl, "PNG", margin + 12, 31, 126, 28);
+        doc.setTextColor(255, 255, 255);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(18);
+        doc.text("Informe de legalizacion de fondos", margin + 174, 40);
+        doc.setFontSize(11);
+        doc.text(saved.fundCode || saved.id, margin + 174, 60);
+        doc.setTextColor(7, 28, 62);
+      };
+      const addSectionTitle = (title: string) => {
+        ensureRoom(34);
+        y += 8;
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(13);
+        doc.setTextColor(7, 28, 62);
+        doc.text(title, margin, y);
+        y += 14;
+        doc.setDrawColor(206, 222, 239);
+        doc.line(margin, y, pageWidth - margin, y);
+        y += 18;
+      };
+      const addInfoRow = (label: string, value: string, rowY: number, x: number, width: number) => {
+        doc.setFillColor(243, 247, 252);
+        doc.rect(x, rowY, 142, 28, "F");
+        doc.setDrawColor(221, 231, 243);
+        doc.rect(x, rowY, width, 28);
+        doc.setFontSize(9);
+        doc.setTextColor(75, 95, 125);
+        doc.setFont("helvetica", "bold");
+        doc.text(label, x + 10, rowY + 18);
+        doc.setTextColor(15, 34, 66);
+        doc.setFont("helvetica", "normal");
+        doc.text(doc.splitTextToSize(value || "-", width - 162), x + 154, rowY + 18);
+      };
+      const addWrapped = (text: string, x: number, maxWidth: number) => {
+        const lines = doc.splitTextToSize(text || "-", maxWidth);
+        doc.text(lines, x, y);
+        y += Math.max(16, lines.length * 13);
+      };
 
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(18);
-      doc.text("Informe de legalizacion de fondos", margin, y);
-      y += 28;
+      addHeader();
       doc.setFontSize(10);
       doc.setFont("helvetica", "normal");
-      doc.text(`Generado: ${new Date().toLocaleString("es-CO")}`, margin, y);
+      doc.setTextColor(75, 95, 125);
+      doc.text(`Generado: ${new Date().toLocaleString("es-CO", { timeZone: "America/Bogota" })}`, margin, y);
       y += 24;
 
-      doc.setFontSize(11);
-      addLine("Tipo", saved.fundType);
-      addLine("Proyecto / objeto", saved.projectName);
-      addLine("Responsable", saved.employee);
-      addLine("Area", saved.department);
-      addLine("ID solicitud", saved.fundCode);
-      addLine("Fecha consignacion", saved.depositDate);
-      addLine("Referencia", saved.depositReference);
-      addLine("Origen", saved.depositSource);
-      addLine("Estado", saved.status);
-      y += 10;
-      addLine("Consignado", formatMoney(saved.advanceCents, saved.currency));
-      addLine("Gastado", formatMoney(spent, saved.currency));
-      addLine("Reintegrado en gastos", formatMoney(refunded, saved.currency));
-      addLine("Devuelto", formatMoney(saved.cashReturnedCents, saved.currency));
-      addLine(balance < 0 ? "Excedido" : "Disponible", formatMoney(Math.abs(balance), saved.currency));
+      addSectionTitle("Datos de la solicitud");
+      const leftX = margin;
+      const rightX = margin + contentWidth / 2 + 8;
+      const colWidth = contentWidth / 2 - 8;
+      const firstRowY = y;
+      addInfoRow("Tipo", saved.fundType, firstRowY, leftX, colWidth);
+      addInfoRow("ID solicitud", saved.fundCode, firstRowY, rightX, colWidth);
+      addInfoRow("Proyecto / objeto", saved.projectName, firstRowY + 28, leftX, colWidth);
+      addInfoRow("Responsable", saved.employee, firstRowY + 28, rightX, colWidth);
+      addInfoRow("Area", saved.department, firstRowY + 56, leftX, colWidth);
+      addInfoRow("Fecha consignacion", saved.depositDate, firstRowY + 56, rightX, colWidth);
+      addInfoRow("Origen", saved.depositSource, firstRowY + 84, leftX, colWidth);
+      addInfoRow("Estado", saved.status, firstRowY + 84, rightX, colWidth);
+      y = firstRowY + 124;
 
-      y += 16;
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(13);
-      doc.text("Gastos", margin, y);
-      y += 20;
+      addSectionTitle("Resumen financiero");
+      const summaryY = y;
+      const summaryCols = [
+        ["Consignado", formatMoney(saved.advanceCents, saved.currency)],
+        ["Gastado", formatMoney(spent, saved.currency)],
+        ["Reintegrado", formatMoney(refunded, saved.currency)],
+        [balance < 0 ? "Saldo a favor" : "Por devolver / disponible", formatMoney(Math.abs(balance), saved.currency)],
+      ];
+      summaryCols.forEach(([label, value], index) => {
+        const boxWidth = (contentWidth - 24) / 4;
+        const x = margin + index * (boxWidth + 8);
+        doc.setFillColor(index === 3 ? 232 : 248, index === 3 ? 250 : 251, index === 3 ? 245 : 255);
+        doc.roundedRect(x, summaryY, boxWidth, 58, 6, 6, "F");
+        doc.setDrawColor(206, 222, 239);
+        doc.roundedRect(x, summaryY, boxWidth, 58, 6, 6);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(8);
+        doc.setTextColor(75, 95, 125);
+        doc.text(label.toUpperCase(), x + 10, summaryY + 18);
+        doc.setFontSize(11);
+        doc.setTextColor(index === 3 && balance >= 0 ? 0 : 7, index === 3 && balance >= 0 ? 119 : 28, index === 3 && balance >= 0 ? 95 : 62);
+        doc.text(value, x + 10, summaryY + 40);
+      });
+      y += 82;
+
+      addSectionTitle("Gastos");
       doc.setFontSize(9);
       if (saved.expenses.length === 0) {
         doc.setFont("helvetica", "normal");
+        doc.setTextColor(75, 95, 125);
         doc.text("No hay gastos registrados.", margin, y);
         y += 18;
       }
-      saved.expenses.forEach((expense, index) => {
-        ensureRoom(64);
+      if (saved.expenses.length > 0) {
+        doc.setFillColor(232, 240, 250);
+        doc.rect(margin, y, contentWidth, 24, "F");
         doc.setFont("helvetica", "bold");
-        doc.text(`${index + 1}. ${expense.date} - ${expense.category}`, margin, y);
-        doc.text(formatMoney(expense.amountCents, saved.currency), pageWidth - margin - 90, y);
-        y += 14;
+        doc.setFontSize(8);
+        doc.setTextColor(7, 28, 62);
+        doc.text("FECHA", margin + 10, y + 16);
+        doc.text("CATEGORIA / PROVEEDOR", margin + 90, y + 16);
+        doc.text("VALOR", pageWidth - margin - 78, y + 16);
+        y += 24;
+      }
+      saved.expenses.forEach((expense, index) => {
+        ensureRoom(58);
+        const rowStart = y;
+        doc.setDrawColor(221, 231, 243);
+        doc.rect(margin, rowStart, contentWidth, 46);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(15, 34, 66);
+        doc.text(`${index + 1}. ${expense.date}`, margin + 10, y + 16);
+        doc.text(expense.category || "-", margin + 90, y + 16);
+        doc.text(formatMoney(expense.amountCents, saved.currency), pageWidth - margin - 78, y + 16);
         doc.setFont("helvetica", "normal");
-        addWrapped(
-          `${expense.vendor || "Proveedor sin registrar"} | Factura: ${expense.invoice || "-"} | Reintegrado: ${formatMoney(expense.refundCents ?? 0, saved.currency)} | ${expense.description || "-"}`,
-          margin,
-          pageWidth - margin * 2,
-        );
+        doc.setTextColor(75, 95, 125);
+        const detail = `${expense.vendor || "Proveedor sin registrar"} | Factura: ${expense.invoice || "-"} | Reintegrado: ${formatMoney(expense.refundCents ?? 0, saved.currency)} | ${expense.description || "-"}`;
+        doc.text(doc.splitTextToSize(detail, contentWidth - 110), margin + 90, y + 32);
+        y += 46;
       });
 
       if (saved.notes) {
@@ -860,6 +948,7 @@ export default function Home() {
         y += 18;
         doc.setFont("helvetica", "normal");
         doc.setFontSize(10);
+        doc.setTextColor(75, 95, 125);
         addWrapped(saved.notes, margin, pageWidth - margin * 2);
       }
 
@@ -867,6 +956,7 @@ export default function Home() {
       y = margin;
       doc.setFont("helvetica", "bold");
       doc.setFontSize(16);
+      doc.setTextColor(7, 28, 62);
       doc.text("Anexos", margin, y);
       y += 24;
       doc.setFontSize(10);
@@ -1262,7 +1352,7 @@ export default function Home() {
                 <FieldLabel>Tipo</FieldLabel>
                 <select
                   value={draft.fundType}
-                  disabled={!canEdit}
+                  disabled={!canEditRequestInfo}
                   onChange={(event) => updateDraft("fundType", event.target.value)}
                 >
                   <option>Caja menor</option>
@@ -1274,7 +1364,7 @@ export default function Home() {
                 <FieldLabel>Proyecto / objeto</FieldLabel>
                 <input
                   value={draft.projectName}
-                  readOnly={!canSave}
+                  readOnly={!canEditRequestInfo}
                   onChange={(event) => updateDraft("projectName", event.target.value)}
                   placeholder="Nombre del proyecto o viaje"
                 />
@@ -1283,7 +1373,7 @@ export default function Home() {
                 <FieldLabel>Responsable</FieldLabel>
                 <input
                   value={draft.employee}
-                  readOnly={!canEdit}
+                  readOnly={!canEditRequestInfo}
                   onChange={(event) => updateDraft("employee", event.target.value)}
                   placeholder="Nombre completo"
                 />
@@ -1292,7 +1382,7 @@ export default function Home() {
                 <FieldLabel>Area</FieldLabel>
                 <input
                   value={draft.department}
-                  readOnly={!canEdit}
+                  readOnly={!canEditRequestInfo}
                   onChange={(event) => updateDraft("department", event.target.value)}
                   placeholder="Administrativa"
                 />
@@ -1310,14 +1400,14 @@ export default function Home() {
                 <div className="money-input">
                   <input
                     inputMode="numeric"
-                    readOnly={!canSave}
+                    readOnly={!canEditRequestInfo}
                     value={formatMoneyInput(draft.advanceCents)}
                     onChange={(event) => updateDraft("advanceCents", parseMoney(event.target.value))}
                     placeholder="0"
                   />
                   <select
                     aria-label="Moneda"
-                    disabled={!canSave}
+                    disabled={!canEditRequestInfo}
                     value={draft.currency}
                     onChange={(event) => updateDraft("currency", coerceCurrency(event.target.value))}
                   >
@@ -1330,7 +1420,7 @@ export default function Home() {
                 Fecha consignacion
                 <input
                   type="date"
-                  readOnly={!canSave}
+                  readOnly={!canEditRequestInfo}
                   value={draft.depositDate}
                   onChange={(event) => updateDraft("depositDate", event.target.value)}
                 />
@@ -1339,7 +1429,7 @@ export default function Home() {
                 Referencia
                 <input
                   value={draft.depositReference}
-                  readOnly={!canSave}
+                  readOnly={!canEditRequestInfo}
                   onChange={(event) => updateDraft("depositReference", event.target.value)}
                   placeholder="Comprobante o recibo"
                 />
@@ -1348,7 +1438,7 @@ export default function Home() {
                 <FieldLabel>Origen</FieldLabel>
                 <select
                   value={draft.depositSource}
-                  disabled={!canEdit}
+                  disabled={!canEditRequestInfo}
                   onChange={(event) => updateDraft("depositSource", event.target.value)}
                 >
                   <option value="">Seleccionar origen</option>
@@ -1362,7 +1452,7 @@ export default function Home() {
                     <FieldLabel>Desde</FieldLabel>
                     <input
                       type="date"
-                      readOnly={!canEdit}
+                      readOnly={!canEditRequestInfo}
                       required
                       value={draft.periodStart}
                       onChange={(event) => updateDraft("periodStart", event.target.value)}
@@ -1372,7 +1462,7 @@ export default function Home() {
                     <FieldLabel>Hasta</FieldLabel>
                     <input
                       type="date"
-                      readOnly={!canEdit}
+                      readOnly={!canEditRequestInfo}
                       required
                       value={draft.periodEnd}
                       onChange={(event) => updateDraft("periodEnd", event.target.value)}
@@ -1386,24 +1476,30 @@ export default function Home() {
               Observaciones
               <textarea
                 value={draft.notes}
-                readOnly={!canEdit}
+                readOnly={!canEditRequestInfo}
                 onChange={(event) => updateDraft("notes", event.target.value)}
                 placeholder="Notas de revision, aprobacion o pendientes"
               />
             </label>
-            <div className="workflow-actions request-actions">
-              <button type="button" className="request-action-button request-action-draft" disabled={!canEdit} onClick={() => void saveSettlement()}>
-                Guardar borrador
-              </button>
-              <button type="button" className="request-action-button request-action-submit" disabled={!canEdit} onClick={submitForApproval}>
-                Enviar a aprobacion
-              </button>
+            {(canSubmitForApproval || canApproveConsignation) && (
+              <div className="workflow-actions request-actions">
+                {canSubmitForApproval && (
+                  <>
+                    <button type="button" className="request-action-button request-action-draft" onClick={() => void saveSettlement()}>
+                      Guardar borrador
+                    </button>
+                    <button type="button" className="request-action-button request-action-submit" onClick={submitForApproval}>
+                      Enviar a aprobacion
+                    </button>
+                  </>
+                )}
               {canApproveConsignation && (
                 <button type="button" className="pdf-button request-action-button" disabled={!activeId} onClick={approveConsignation}>
                   Aprobar consignacion
                 </button>
               )}
-            </div>
+              </div>
+            )}
           </section>
 
           <section className="panel expense-panel">
@@ -1946,6 +2042,48 @@ export default function Home() {
               </div>
             )}
           </section>
+        )}
+        {showReviewAlert && (
+          <div className="modal-backdrop" role="presentation">
+            <section className="confirm-modal reviewer-alert" role="dialog" aria-modal="true" aria-labelledby="review-alert-title">
+              <h2 id="review-alert-title">Solicitudes pendientes de aprobacion</h2>
+              <p>
+                Tienes {pendingReviewRecords.length} solicitud{pendingReviewRecords.length === 1 ? "" : "es"} esperando revision de consignacion.
+              </p>
+              <div className="modal-summary review-alert-list">
+                {pendingReviewRecords.slice(0, 4).map((record) => (
+                  <button
+                    type="button"
+                    key={record.id}
+                    onClick={() => {
+                      setReviewAlertDismissed(true);
+                      openRecord(record, "Solicitud abierta para revision.");
+                    }}
+                  >
+                    <span>{record.fundCode || record.fundType}</span>
+                    <strong>{record.projectName || "Sin proyecto registrado"}</strong>
+                    <small>{formatMoney(record.advanceCents, record.currency)}</small>
+                  </button>
+                ))}
+              </div>
+              <div className="modal-actions">
+                <button type="button" className="ghost" onClick={() => setReviewAlertDismissed(true)}>
+                  Revisar despues
+                </button>
+                <button
+                  type="button"
+                  className="save"
+                  onClick={() => {
+                    setReviewAlertDismissed(true);
+                    setRequestsOpen(true);
+                    setActiveView("status");
+                  }}
+                >
+                  Ir a gestion
+                </button>
+              </div>
+            </section>
+          </div>
         )}
         {managementTarget && (
           <div className="modal-backdrop" role="presentation">
