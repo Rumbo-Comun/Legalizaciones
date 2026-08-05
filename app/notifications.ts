@@ -554,3 +554,72 @@ export async function notifyPasswordReset(user: Reviewer, token: string) {
 
   return response.ok;
 }
+
+export async function notifyUserWelcome(user: Reviewer, temporaryPassword: string) {
+  if (!hasDeliverableEmail(user.email)) return false;
+
+  const apiKey = getRuntimeValue("RESEND_API_KEY");
+  const from = getRuntimeValue("MAIL_FROM") || "Legalizaciones USCOM <noreply@uscom.net.co>";
+  const baseUrl = getRuntimeValue("APP_BASE_URL") || fallbackBaseUrl;
+  const openUrl = normalizeAppUrl(baseUrl);
+  const logoUrl = `${openUrl}/uscom-logo.png`;
+
+  if (!apiKey) return false;
+
+  const html = `
+    <div style="margin:0; padding:24px 12px; background:#f3f7fb; font-family:Arial, Helvetica, sans-serif; color:#111827;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:680px; margin:0 auto; background:#ffffff; border:1px solid #dbe5ef; border-radius:8px; overflow:hidden;">
+        <tr>
+          <td style="background:#075eb8; color:#ffffff; padding:24px 28px; text-align:center;">
+            <div style="background:#ffffff; border-radius:6px; display:inline-block; margin:0 0 14px; padding:8px 14px;">
+              <img src="${escapeHtml(logoUrl)}" width="210" alt="USCOM SAS" style="border:0; display:block; height:auto; max-width:210px;" />
+            </div>
+            <h1 style="font-size:24px; margin:0;">Registro exitoso</h1>
+            <p style="font-size:14px; margin:8px 0 0; opacity:.92;">Sistema de Legalizacion de Gastos USCOM SAS</p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:26px 28px;">
+            <p style="font-size:15px; line-height:1.55; margin:0 0 16px;">
+              Hola ${escapeHtml(user.name)}, su usuario fue registrado con exito en la plataforma de legalizacion de gastos de USCOM SAS.
+            </p>
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse; border:1px solid #e2e8f0; margin:18px 0;">
+              ${detailRow("Usuario", user.email)}
+              ${detailRow("Clave temporal", temporaryPassword, true)}
+            </table>
+            <p style="font-size:14px; line-height:1.5; margin:0 0 18px; color:#4b5d73;">
+              Puede ingresar con esta clave temporal y luego cambiarla desde el menu Cuenta, opcion Cambiar contrasena.
+            </p>
+            <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 16px;">
+              <tr>
+                <td bgcolor="#075eb8" style="border-radius:6px;">
+                  <a href="${escapeHtml(openUrl)}" target="_blank" style="display:inline-block; color:#ffffff; font-size:14px; font-weight:800; padding:14px 22px; text-decoration:none;">Ingresar a Legalizaciones</a>
+                </td>
+              </tr>
+            </table>
+            <p style="font-size:12px; line-height:1.5; margin:0; color:#7a8797;">
+              Enlace alterno:<br />
+              <a href="${escapeHtml(openUrl)}" target="_blank" style="color:#075eb8; word-break:break-all;">${escapeHtml(openUrl)}</a>
+            </p>
+          </td>
+        </tr>
+      </table>
+    </div>
+  `;
+
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from,
+      to: user.email,
+      subject: "Registro exitoso - Legalizaciones USCOM SAS",
+      html,
+    }),
+  });
+
+  return response.ok;
+}

@@ -1167,7 +1167,13 @@ export default function Home() {
       setNotice(data.error ?? "No se pudo guardar el usuario.");
       return;
     }
-    setNotice("Usuario guardado.");
+    setNotice(
+      data.welcomeMailAttempted
+        ? data.welcomeMailSent
+          ? "Usuario guardado. Correo de bienvenida enviado."
+          : "Usuario guardado. No se pudo enviar el correo de bienvenida; revisa RESEND_API_KEY y el correo del usuario."
+        : "Usuario guardado.",
+    );
     setEditingUserId("");
     setNewUser({ name: "", email: "", role: "solicitante", password: "" });
     await loadUsers();
