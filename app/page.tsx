@@ -1731,6 +1731,15 @@ export default function Home() {
             >
               {pdfBusy ? "Generando PDF..." : "Descargar informe PDF"}
             </button>
+            {hasConsignation && expensesEnabled && !draftClosed && canActOnRecord(draft) && (
+              <button
+                type="button"
+                className="close-legalization-button"
+                onClick={() => setManagementTarget(normalizeSettlement(draft))}
+              >
+                Enviar informe y cerrar legalizacion
+              </button>
+            )}
             {notice && <p className="notice">{notice}</p>}
             {hasConsignation && expensesEnabled && (
               <div className="topup-box">
@@ -1880,7 +1889,7 @@ export default function Home() {
                           disabled={!canUseActions || recordClosed}
                           onClick={() => setManagementTarget(normalizeSettlement(record))}
                         >
-                          Enviar a gerencia
+                          Enviar informe / cerrar
                         </button>
                       </span>
                     </article>
@@ -2088,9 +2097,9 @@ export default function Home() {
         {managementTarget && (
           <div className="modal-backdrop" role="presentation">
             <section className="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="management-confirm-title">
-              <h2 id="management-confirm-title">Enviar a gerencia</h2>
+              <h2 id="management-confirm-title">Enviar informe y cerrar legalizacion</h2>
               <p>
-                Advertencia: si envia esta solicitud a gerencia se cerrara la actividad y no podra subir mas soportes ni registrar nuevos gastos.
+                Advertencia: si envia el informe por correo a gerencia, esta legalizacion se cerrara y no podra subir mas soportes ni registrar nuevos gastos.
               </p>
               <div className="modal-summary">
                 <span>{managementTarget.projectName || managementTarget.fundCode || managementTarget.fundType}</span>
@@ -2102,7 +2111,7 @@ export default function Home() {
                   Cancelar
                 </button>
                 <button type="button" className="save" onClick={() => void sendToManagement(managementTarget)}>
-                  Confirmar envio
+                  Enviar y cerrar
                 </button>
               </div>
             </section>

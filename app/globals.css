@@ -910,6 +910,14 @@ label {
   width: 100%;
 }
 
+.close-legalization-button {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: white;
+  margin-top: 10px;
+  width: 100%;
+}
+
 .topup-box {
   border-top: 1px solid var(--line);
   display: grid;
