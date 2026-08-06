@@ -147,7 +147,8 @@ function userPosition(user: Pick<AppUser, "name" | "email" | "role">) {
   if (name.includes("andres") || email === "proyectos@uscom.net.co") return "Gerente de Proyectos";
   if (name.includes("felipe") || email === "analista@uscom.net.co") return "Desarrollador";
   if (name.includes("william") || email === "defensa@uscom.net.co") return "Gerente de Operaciones";
-  if (name.includes("otto") || email === "canales@uscom.net.co" || email === "otto.urrea@uscom.net.co") return "Gerente General";
+  if (name.includes("otto") || email === "otto.urrea@uscom.net.co") return "Gerente General";
+  if (name.includes("administrador") || email === "canales@uscom.net.co") return "Administrador";
   return sentenceCase(user.role);
 }
 

@@ -41,22 +41,26 @@ async function makePassword(password: string) {
 export async function ensureDefaultUsers() {
   const db = getDb();
   const defaults = [
-    ["Administrador", "admin@local", "admin", "admin123"],
     ["ANDRES SALAS", "proyectos@uscom.net.co", "solicitante", "andres123"],
     ["WILLIAM", "defensa@uscom.net.co", "solicitante", "william123"],
     ["FELIPE", "analista@uscom.net.co", "solicitante", "felipe123"],
-    ["OTTO URREA", "canales@uscom.net.co", "revisor", "otto123"],
+    ["OTTO URREA", "otto.urrea@uscom.net.co", "revisor", "otto123"],
+    ["Administrador", "canales@uscom.net.co", "admin", "admin123"],
   ] as const;
 
   for (const [name, email, role, password] of defaults) {
-    const [existing] = await db.select().from(users).where(eq(users.email, email));
     const [existingName] = await db.select().from(users).where(eq(users.name, name));
-    if (existing) continue;
     if (existingName) {
+      const [emailOwner] = await db.select().from(users).where(eq(users.email, email));
       await db
         .update(users)
-        .set({ email, role, active: 1 })
+        .set({ ...(emailOwner && emailOwner.id !== existingName.id ? {} : { email }), role, active: 1 })
         .where(eq(users.id, existingName.id));
+      continue;
+    }
+    const [existing] = await db.select().from(users).where(eq(users.email, email));
+    if (existing) {
+      await db.update(users).set({ name, role, active: 1 }).where(eq(users.id, existing.id));
       continue;
     }
     const passwordInfo = await makePassword(password);
