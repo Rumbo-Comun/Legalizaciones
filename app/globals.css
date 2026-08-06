@@ -1341,6 +1341,16 @@ label {
   color: #ffffff;
 }
 
+.danger-action {
+  background: #fff1f2;
+  border-color: rgba(190, 18, 60, 0.28);
+  color: #be123c;
+}
+
+.danger-action:hover {
+  border-color: #be123c;
+}
+
 .upload-action input {
   display: none;
 }

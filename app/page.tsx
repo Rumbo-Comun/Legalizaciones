@@ -787,15 +787,26 @@ export default function Home() {
     setNotice("Solicitud de ampliacion enviada a revision.");
   }
 
-  async function removeRecord(id: string) {
-    if (!canEdit) return;
-    const response = await fetch(`/api/settlements/${id}`, { method: "DELETE" });
-    if (response.ok) {
-      setNotice("Registro eliminado.");
+  async function removeRecord(record: Settlement) {
+    if (!canAdmin) return;
+    const label = record.fundCode || record.projectName || record.fundType;
+    const confirmed = window.confirm(
+      `Vas a eliminar definitivamente la legalizacion ${label}. Esta accion no se puede deshacer. Deseas continuar?`,
+    );
+    if (!confirmed) return;
+    const response = await fetch(`/api/settlements/${record.id}`, { method: "DELETE" });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      setNotice(data.error ?? "No se pudo eliminar la legalizacion.");
+      return;
+    }
+    setNotice("Legalizacion eliminada.");
+    if (activeId === record.id) {
       setDraft(emptySettlement());
       setActiveId("");
-      await loadRecords();
+      setActiveView("status");
     }
+    await loadRecords();
   }
 
   function exportFile(type: "csv" | "json") {
@@ -2126,6 +2137,15 @@ export default function Home() {
                             onClick={() => setManagementTarget(normalizeSettlement(record))}
                           >
                             Enviar informe / cerrar
+                          </button>
+                        )}
+                        {canAdmin && (
+                          <button
+                            type="button"
+                            className="mini-action danger-action"
+                            onClick={() => void removeRecord(record)}
+                          >
+                            Eliminar
                           </button>
                         )}
                       </span>
