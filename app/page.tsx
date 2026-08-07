@@ -84,6 +84,14 @@ type SettlementOverride = Partial<Settlement> & {
   topUpReason?: string;
 };
 
+function BellIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+      <path d="M15 17H9m9-1.6V11a6 6 0 0 0-4.3-5.75 1.8 1.8 0 0 0-3.4 0A6 6 0 0 0 6 11v4.4L4.7 17h14.6L18 15.4ZM9.8 19a2.4 2.4 0 0 0 4.4 0" />
+    </svg>
+  );
+}
+
 const emptyExpense = (): Expense => ({
   id: crypto.randomUUID(),
   date: new Date().toISOString().slice(0, 10),
@@ -271,6 +279,7 @@ export default function Home() {
   const [managementTarget, setManagementTarget] = useState<Settlement | null>(null);
   const [activityTarget, setActivityTarget] = useState<Settlement | null>(null);
   const [reviewAlertDismissed, setReviewAlertDismissed] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
@@ -392,14 +401,14 @@ export default function Home() {
     return [...categories.values()].sort((left, right) => right.amount - left.amount);
   }, [records]);
   const pendingReviewRecords = useMemo(() => {
-    if (!currentUser || !isOttoUser) return [];
+    if (!currentUser || (currentUser.role !== "admin" && currentUser.role !== "revisor")) return [];
     return records.filter(
       (record) =>
-        record.status === "pendiente aprobacion" &&
+        ["pendiente aprobacion", "solicitud ampliacion"].includes(record.status) &&
         (currentUser.role === "admin" || (record.access ?? []).some((access) => access.userId === currentUser.id)),
     );
-  }, [currentUser, isOttoUser, records]);
-  const showReviewAlert = pendingReviewRecords.length > 0 && !reviewAlertDismissed;
+  }, [currentUser, records]);
+  const showReviewAlert = notificationsOpen || (pendingReviewRecords.length > 0 && !reviewAlertDismissed);
 
   useEffect(() => {
     void loadMe();
@@ -1405,6 +1414,18 @@ export default function Home() {
           </div>
           <div className="actions">
             <span className="user-pill">{currentUser.name} · {userPosition(currentUser)}</span>
+            {(currentUser.role === "admin" || currentUser.role === "revisor") && (
+              <button
+                type="button"
+                className="notification-button"
+                onClick={() => setNotificationsOpen(true)}
+                aria-label={`Notificaciones pendientes: ${pendingReviewRecords.length}`}
+                title="Notificaciones"
+              >
+                <BellIcon />
+                {pendingReviewRecords.length > 0 && <span>{pendingReviewRecords.length}</span>}
+              </button>
+            )}
             <div className="user-menu">
               <button type="button" className="menu-trigger" onClick={() => setUserMenuOpen((open) => !open)} aria-expanded={userMenuOpen}>
                 Cuenta
@@ -2312,35 +2333,50 @@ export default function Home() {
         {showReviewAlert && (
           <div className="modal-backdrop" role="presentation">
             <section className="confirm-modal reviewer-alert" role="dialog" aria-modal="true" aria-labelledby="review-alert-title">
-              <h2 id="review-alert-title">Solicitudes pendientes de aprobacion</h2>
+              <h2 id="review-alert-title">Centro de notificaciones</h2>
               <p>
-                Tienes {pendingReviewRecords.length} solicitud{pendingReviewRecords.length === 1 ? "" : "es"} esperando revision de consignacion.
+                Tienes {pendingReviewRecords.length} solicitud{pendingReviewRecords.length === 1 ? "" : "es"} pendiente{pendingReviewRecords.length === 1 ? "" : "s"} por revisar.
               </p>
               <div className="modal-summary review-alert-list">
-                {pendingReviewRecords.slice(0, 4).map((record) => (
+                {pendingReviewRecords.length === 0 && (
+                  <div className="empty-state">No tienes solicitudes pendientes por revisar.</div>
+                )}
+                {pendingReviewRecords.slice(0, 6).map((record) => (
                   <button
                     type="button"
                     key={record.id}
                     onClick={() => {
                       setReviewAlertDismissed(true);
+                      setNotificationsOpen(false);
                       openRecord(record, "Solicitud abierta para revision.");
                     }}
                   >
                     <span>{record.fundCode || record.fundType}</span>
                     <strong>{record.projectName || "Sin proyecto registrado"}</strong>
-                    <small>{formatMoney(record.advanceCents, record.currency)}</small>
+                    <small>
+                      {sentenceCase(record.status)} - {record.employee || "Sin responsable"} - {formatMoney(record.advanceCents, record.currency)}
+                    </small>
                   </button>
                 ))}
               </div>
               <div className="modal-actions">
-                <button type="button" className="ghost" onClick={() => setReviewAlertDismissed(true)}>
+                <button
+                  type="button"
+                  className="ghost"
+                  onClick={() => {
+                    setReviewAlertDismissed(true);
+                    setNotificationsOpen(false);
+                  }}
+                >
                   Revisar despues
                 </button>
                 <button
                   type="button"
                   className="save"
+                  disabled={pendingReviewRecords.length === 0}
                   onClick={() => {
                     setReviewAlertDismissed(true);
+                    setNotificationsOpen(false);
                     setRequestsOpen(true);
                     setActiveView("status");
                   }}

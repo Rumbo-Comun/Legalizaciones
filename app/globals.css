@@ -525,6 +525,50 @@ label {
   padding: 9px 10px;
 }
 
+.notification-button {
+  align-items: center;
+  background: #ffffff;
+  border-color: rgba(10, 79, 179, 0.2);
+  border-radius: 999px;
+  color: var(--blue-dark);
+  display: inline-flex;
+  height: 38px;
+  justify-content: center;
+  min-height: 38px;
+  min-width: 38px;
+  padding: 0;
+  position: relative;
+  width: 38px;
+}
+
+.notification-button svg {
+  fill: none;
+  height: 20px;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+  width: 20px;
+}
+
+.notification-button span {
+  align-items: center;
+  background: var(--rose);
+  border: 2px solid #ffffff;
+  border-radius: 999px;
+  color: #ffffff;
+  display: inline-flex;
+  font-size: 0.68rem;
+  font-weight: 900;
+  height: 20px;
+  justify-content: center;
+  min-width: 20px;
+  padding: 0 5px;
+  position: absolute;
+  right: -7px;
+  top: -7px;
+}
+
 .user-menu {
   position: relative;
 }
