@@ -59,7 +59,7 @@ export async function PUT(request: Request, context: RouteContext) {
       .where(eq(settlements.id, id));
     const nextStatus = String(payload.status || "borrador");
     if (nextStatus.includes("aprobacion")) {
-      const reviewerRows = await assignReviewers(id);
+      const reviewerRows = await assignReviewers(id, String(payload.reviewerUserId || ""));
       if (current.status !== nextStatus) {
         const [settlement] = await db.select().from(settlements).where(eq(settlements.id, id));
         if (settlement) await notifyApprovalRequest(settlement, reviewerRows, user);

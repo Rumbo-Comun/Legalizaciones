@@ -83,6 +83,7 @@ type Settlement = {
 type SettlementOverride = Partial<Settlement> & {
   topUpAmountCents?: number;
   topUpReason?: string;
+  reviewerUserId?: string;
 };
 
 function BellIcon() {
@@ -275,6 +276,7 @@ export default function Home() {
   });
   const [editingUserId, setEditingUserId] = useState("");
   const [selectedUserId, setSelectedUserId] = useState("");
+  const [approvalReviewerId, setApprovalReviewerId] = useState("");
   const [commentDraft, setCommentDraft] = useState("");
   const [topUpAmount, setTopUpAmount] = useState("");
   const [topUpReason, setTopUpReason] = useState("");
@@ -334,6 +336,10 @@ export default function Home() {
     const admins = users.filter((user) => user.role === "admin").length;
     return { activeUsers, requesters, reviewers, admins };
   }, [users]);
+  const approvalReviewers = useMemo(
+    () => users.filter((user) => user.active !== 0 && ["revisor", "admin"].includes(user.role)),
+    [users],
+  );
   const expensesEnabled = ["consignado", "registrando gastos", "aprobado", "solicitud ampliacion"].includes(
     draft.status,
   );
@@ -503,7 +509,7 @@ export default function Home() {
     setAuthChecked(true);
     if (data.user) {
       await loadRecords();
-      if (data.user.role === "admin" || data.user.name.toUpperCase().includes("OTTO")) await loadUsers();
+      await loadUsers();
     }
   }
 
@@ -522,7 +528,7 @@ export default function Home() {
     setCurrentUser(data.user);
     setNotice("");
     await loadRecords();
-    if (data.user.role === "admin" || data.user.name.toUpperCase().includes("OTTO")) await loadUsers();
+    await loadUsers();
   }
 
   async function logout() {
@@ -655,6 +661,7 @@ export default function Home() {
   function openRecord(record: Settlement, message?: string) {
     setDraft(normalizeSettlement(record));
     setActiveId(record.id);
+    setApprovalReviewerId("");
     setRequestsOpen(true);
     setActiveView("requestInfo");
     setActivityTarget(null);
@@ -839,7 +846,7 @@ export default function Home() {
 
   async function submitForApproval() {
     if (!canSubmitForApproval) return;
-    const saved = await saveSettlement(undefined, { status: "pendiente aprobacion" });
+    const saved = await saveSettlement(undefined, { status: "pendiente aprobacion", reviewerUserId: approvalReviewerId });
     if (saved) setNotice("Solicitud enviada a aprobacion. Los revisores autorizados ya pueden verla.");
   }
 
@@ -1435,6 +1442,7 @@ export default function Home() {
                   onClick={() => {
                     setDraft(emptySettlement());
                     setActiveId("");
+                    setApprovalReviewerId("");
                     setActiveView("new");
                   }}
                 >
@@ -1683,6 +1691,22 @@ export default function Home() {
                   placeholder="Nombre completo"
                 />
               </label>
+              {canSubmitForApproval && (
+                <label>
+                  Dirigir revision a
+                  <select
+                    value={approvalReviewerId}
+                    onChange={(event) => setApprovalReviewerId(event.target.value)}
+                  >
+                    <option value="">Revision general</option>
+                    {approvalReviewers.map((user) => (
+                      <option key={user.id} value={user.id}>
+                        {user.name} - {user.role === "admin" ? "Administrador" : "Revisor"}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
               <label>
                 <FieldLabel>Area</FieldLabel>
                 <input

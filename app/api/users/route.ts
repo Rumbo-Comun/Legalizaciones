@@ -12,11 +12,8 @@ async function passwordParts(password: string) {
 export async function GET(request: Request) {
   const { user, response } = await requireUser(request);
   if (response) return response;
-  const canManageAccess = user.role === "admin" || user.name.toUpperCase().includes("OTTO");
-  if (!canManageAccess) {
-    return Response.json({ error: "No autorizado" }, { status: 403 });
-  }
 
+  const canManageAccess = user.role === "admin" || user.name.toUpperCase().includes("OTTO");
   const rows = await getDb()
     .select({
       id: users.id,
@@ -27,7 +24,11 @@ export async function GET(request: Request) {
     })
     .from(users)
     .orderBy(asc(users.name));
-  return Response.json({ users: rows });
+  return Response.json({
+    users: canManageAccess
+      ? rows
+      : rows.filter((row) => row.active !== 0 && ["revisor", "admin"].includes(row.role)),
+  });
 }
 
 export async function POST(request: Request) {

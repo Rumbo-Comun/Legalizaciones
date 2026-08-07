@@ -7,6 +7,7 @@ import { notifyApprovalRequest } from "../../notifications";
 type ExpensePayload = typeof expenses.$inferInsert;
 type SettlementPayload = typeof settlements.$inferInsert & {
   expenses?: ExpensePayload[];
+  reviewerUserId?: string;
 };
 
 async function hydrateSettlement(id: string) {
@@ -105,10 +106,15 @@ function cleanExpense(expense: Partial<ExpensePayload>, settlementId: string): E
   };
 }
 
-async function assignReviewers(settlementId: string) {
+async function assignReviewers(settlementId: string, reviewerUserId?: string) {
   const db = getDb();
   const allUsers = await db.select().from(users);
-  const reviewerRows = allUsers.filter((user) => user.active !== 0 && user.role === "revisor");
+  const selectedReviewer = reviewerUserId
+    ? allUsers.find((user) => user.id === reviewerUserId && user.active !== 0 && ["revisor", "admin"].includes(user.role))
+    : null;
+  const reviewerRows = selectedReviewer
+    ? [selectedReviewer]
+    : allUsers.filter((user) => user.active !== 0 && user.role === "revisor");
   const current = await db.select().from(settlementAccess).where(eq(settlementAccess.settlementId, settlementId));
   const currentIds = new Set(current.map((row) => row.userId));
   for (const reviewer of reviewerRows) {
@@ -222,7 +228,7 @@ export async function POST(request: Request) {
     const expenseRows = (payload.expenses ?? []).map((expense) => cleanExpense(expense, id));
     if (expenseRows.length) await db.insert(expenses).values(expenseRows);
     if (String(payload.status || "").includes("aprobacion")) {
-      const reviewerRows = await assignReviewers(id);
+      const reviewerRows = await assignReviewers(id, payload.reviewerUserId);
       const [settlement] = await db.select().from(settlements).where(eq(settlements.id, id));
       if (settlement) await notifyApprovalRequest(settlement, reviewerRows, user);
     }
