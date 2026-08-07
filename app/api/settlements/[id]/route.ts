@@ -1,9 +1,9 @@
 import { eq } from "drizzle-orm";
 import { getDb } from "../../../../db";
-import { evidences, expenses, settlementAccess, settlements } from "../../../../db/schema";
+import { evidences, expenses, settlementAccess, settlements, users } from "../../../../db/schema";
 import { assignReviewers, cleanCurrency, cleanCurrencyCode, cleanExpense, hydrateSettlement, missingRequiredSettlementFields } from "../route";
 import { requireUser } from "../../../auth";
-import { notifyApprovalRequest, notifyManagementSubmission, notifyTopUpRequest } from "../../../notifications";
+import { notifyApprovalRequest, notifyManagementSubmission, notifyRequesterApproval, notifyTopUpRequest } from "../../../notifications";
 import { deleteEvidenceFile } from "../../../storage";
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -79,6 +79,23 @@ export async function PUT(request: Request, context: RouteContext) {
             cleanCurrency(payload.cashReturnedCents),
           ),
         });
+      }
+    }
+    if (nextStatus === "consignado" && current.status !== nextStatus) {
+      const [settlement] = await db.select().from(settlements).where(eq(settlements.id, id));
+      const [owner] = current.ownerId ? await db.select().from(users).where(eq(users.id, current.ownerId)) : [];
+      if (settlement) {
+        await notifyRequesterApproval(
+          settlement,
+          owner
+            ? {
+                id: owner.id,
+                name: owner.name,
+                email: owner.email,
+              }
+            : null,
+          user,
+        );
       }
     }
     if (nextStatus === "solicitud ampliacion" && (current.status !== nextStatus || payload.topUpAmountCents)) {

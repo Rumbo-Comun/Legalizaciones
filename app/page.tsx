@@ -408,7 +408,24 @@ export default function Home() {
         (currentUser.role === "admin" || (record.access ?? []).some((access) => access.userId === currentUser.id)),
     );
   }, [currentUser, records]);
-  const showReviewAlert = notificationsOpen || (pendingReviewRecords.length > 0 && !reviewAlertDismissed);
+  const requesterNotificationRecords = useMemo(() => {
+    if (!currentUser || currentUser.role !== "solicitante") return [];
+    return records.filter(
+      (record) => record.ownerId === currentUser.id && ["consignado", "aprobado"].includes(record.status),
+    );
+  }, [currentUser, records]);
+  const notificationRecords = currentUser?.role === "solicitante" ? requesterNotificationRecords : pendingReviewRecords;
+  const notificationCount = notificationRecords.length;
+  const notificationTitle = currentUser?.role === "solicitante" ? "Solicitudes aprobadas" : "Centro de notificaciones";
+  const notificationSummary =
+    currentUser?.role === "solicitante"
+      ? `Tienes ${notificationCount} solicitud${notificationCount === 1 ? "" : "es"} aprobada${notificationCount === 1 ? "" : "s"} para continuar con el registro de gastos.`
+      : `Tienes ${notificationCount} solicitud${notificationCount === 1 ? "" : "es"} pendiente${notificationCount === 1 ? "" : "s"} por revisar.`;
+  const notificationEmptyMessage =
+    currentUser?.role === "solicitante"
+      ? "No tienes solicitudes aprobadas pendientes por revisar."
+      : "No tienes solicitudes pendientes por revisar.";
+  const showReviewAlert = notificationsOpen || (notificationCount > 0 && !reviewAlertDismissed);
 
   useEffect(() => {
     void loadMe();
@@ -1414,16 +1431,16 @@ export default function Home() {
           </div>
           <div className="actions">
             <span className="user-pill">{currentUser.name} · {userPosition(currentUser)}</span>
-            {(currentUser.role === "admin" || currentUser.role === "revisor") && (
+            {(currentUser.role === "admin" || currentUser.role === "revisor" || currentUser.role === "solicitante") && (
               <button
                 type="button"
                 className="notification-button"
                 onClick={() => setNotificationsOpen(true)}
-                aria-label={`Notificaciones pendientes: ${pendingReviewRecords.length}`}
+                aria-label={`Notificaciones pendientes: ${notificationCount}`}
                 title="Notificaciones"
               >
                 <BellIcon />
-                {pendingReviewRecords.length > 0 && <span>{pendingReviewRecords.length}</span>}
+                {notificationCount > 0 && <span>{notificationCount}</span>}
               </button>
             )}
             <div className="user-menu">
@@ -2333,15 +2350,13 @@ export default function Home() {
         {showReviewAlert && (
           <div className="modal-backdrop" role="presentation">
             <section className="confirm-modal reviewer-alert" role="dialog" aria-modal="true" aria-labelledby="review-alert-title">
-              <h2 id="review-alert-title">Centro de notificaciones</h2>
-              <p>
-                Tienes {pendingReviewRecords.length} solicitud{pendingReviewRecords.length === 1 ? "" : "es"} pendiente{pendingReviewRecords.length === 1 ? "" : "s"} por revisar.
-              </p>
+              <h2 id="review-alert-title">{notificationTitle}</h2>
+              <p>{notificationSummary}</p>
               <div className="modal-summary review-alert-list">
-                {pendingReviewRecords.length === 0 && (
-                  <div className="empty-state">No tienes solicitudes pendientes por revisar.</div>
+                {notificationRecords.length === 0 && (
+                  <div className="empty-state">{notificationEmptyMessage}</div>
                 )}
-                {pendingReviewRecords.slice(0, 6).map((record) => (
+                {notificationRecords.slice(0, 6).map((record) => (
                   <button
                     type="button"
                     key={record.id}
@@ -2373,7 +2388,7 @@ export default function Home() {
                 <button
                   type="button"
                   className="save"
-                  disabled={pendingReviewRecords.length === 0}
+                  disabled={notificationRecords.length === 0}
                   onClick={() => {
                     setReviewAlertDismissed(true);
                     setNotificationsOpen(false);

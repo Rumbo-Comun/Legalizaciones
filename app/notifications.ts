@@ -197,6 +197,107 @@ export async function notifyApprovalRequest(settlement: SettlementForMail, revie
   await logNotification(settlement.id, `Correo de aprobacion enviado a ${recipients.join(", ")} desde ${from}.`);
 }
 
+export async function notifyRequesterApproval(
+  settlement: SettlementForMail,
+  requester?: Reviewer | null,
+  approver?: Reviewer,
+) {
+  if (!hasDeliverableEmail(requester?.email)) {
+    await logNotification(settlement.id, "Notificacion de aprobacion pendiente: el solicitante no tiene correo real configurado.");
+    return;
+  }
+
+  const apiKey = getRuntimeValue("RESEND_API_KEY");
+  const from = getRuntimeValue("MAIL_FROM") || "Legalizaciones USCOM <noreply@uscom.net.co>";
+  const baseUrl = getRuntimeValue("APP_BASE_URL") || fallbackBaseUrl;
+  const openUrl = normalizeAppUrl(baseUrl);
+  const logoUrl = `${openUrl}/uscom-logo.png`;
+  const requestId = settlement.fundCode || settlement.id;
+
+  if (!apiKey) {
+    await logNotification(
+      settlement.id,
+      `Notificacion de aprobacion pendiente para ${requester?.email}. Falta configurar RESEND_API_KEY en Coolify.`,
+    );
+    return;
+  }
+
+  const subject = `Solicitud aprobada: ${requestId}`;
+  const html = `
+    <div style="margin:0; padding:24px 12px; background:#f3f7fb; font-family:Arial, Helvetica, sans-serif; color:#111827;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:680px; margin:0 auto; background:#ffffff; border:1px solid #dbe5ef; border-radius:8px; overflow:hidden;">
+        <tr>
+          <td style="background:#007f68; color:#ffffff; padding:24px 28px; text-align:center;">
+            <div style="background:#ffffff; border-radius:6px; display:inline-block; margin:0 0 14px; padding:8px 14px;">
+              <img src="${escapeHtml(logoUrl)}" width="210" alt="USCOM SAS" style="border:0; display:block; height:auto; max-width:210px;" />
+            </div>
+            <h1 style="font-size:24px; margin:0;">Solicitud aprobada</h1>
+            <p style="font-size:14px; margin:8px 0 0; opacity:.94;">La consignacion fue revisada y aprobada.</p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:26px 28px;">
+            <p style="font-size:15px; line-height:1.55; margin:0 0 16px;">
+              Hola ${escapeHtml(requester?.name || settlement.employee)}, tu solicitud fue aprobada. Ya puedes ingresar a la plataforma para cargar soportes y registrar los gastos correspondientes.
+            </p>
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse; border:1px solid #e2e8f0; margin:0 0 18px;">
+              ${detailRow("Solicitante", settlement.employee)}
+              ${detailRow("Tipo", settlement.fundType)}
+              ${detailRow("Proyecto / objeto", settlement.projectName)}
+              ${detailRow("ID solicitud", requestId)}
+              ${detailRow("Valor aprobado", formatMoney(settlement.advanceCents, settlement.currency), true)}
+              ${detailRow("Aprobado por", approver?.name || "Contabilidad / Gerencia")}
+              ${detailRow("Estado", settlement.status)}
+            </table>
+            <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 14px;">
+              <tr>
+                <td bgcolor="#075eb8" style="border-radius:6px;">
+                  <a href="${escapeHtml(openUrl)}" target="_blank" style="display:inline-block; color:#ffffff; font-size:14px; font-weight:800; padding:14px 22px; text-decoration:none;">Abrir solicitud en Legalizaciones</a>
+                </td>
+              </tr>
+            </table>
+            <p style="font-size:12px; line-height:1.5; margin:0; color:#7a8797;">
+              Si el boton no abre, copie este enlace en el navegador:<br />
+              <a href="${escapeHtml(openUrl)}" target="_blank" style="color:#075eb8; word-break:break-all;">${escapeHtml(openUrl)}</a>
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td style="background:#f8fafc; color:#7a8797; font-size:12px; padding:16px 28px; text-align:center;">
+            Sistema de Gestion USCOM SAS
+          </td>
+        </tr>
+      </table>
+    </div>
+  `;
+
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from,
+      to: requester!.email,
+      reply_to: hasDeliverableEmail(approver?.email) ? approver?.email : undefined,
+      subject,
+      html,
+    }),
+  });
+
+  if (!response.ok) {
+    const detail = await response.text();
+    await logNotification(
+      settlement.id,
+      `No se pudo enviar correo de aprobacion al solicitante ${requester?.email}. Key usada: ${apiKeyFingerprint(apiKey)}. Respuesta proveedor: ${detail}`,
+    );
+    return;
+  }
+
+  await logNotification(settlement.id, `Correo de aprobacion al solicitante enviado a ${requester?.email} desde ${from}.`);
+}
+
 export async function notifyManagementSubmission(
   settlement: SettlementForMail,
   reviewers: Reviewer[],
