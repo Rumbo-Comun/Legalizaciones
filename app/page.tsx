@@ -773,7 +773,9 @@ export default function Home() {
   }
 
   async function deleteEvidence(id: string) {
-    if (!canEdit) return;
+    if (!canAdmin) return;
+    const confirmed = window.confirm("Deseas eliminar este soporte? Esta accion no se puede deshacer.");
+    if (!confirmed) return;
     const response = await fetch(`/api/evidences/${id}`, { method: "DELETE" });
     if (response.ok) {
       setDraft((current) => ({
@@ -2006,9 +2008,9 @@ export default function Home() {
                             {evidence.fileName}
                             <button
                               type="button"
-                              disabled
+                              disabled={!canAdmin}
                               onClick={() => deleteEvidence(evidence.id)}
-                              title="El soporte bloquea el gasto y no se puede quitar desde aqui"
+                              title={canAdmin ? "Eliminar soporte" : "Solo el administrador puede eliminar soportes"}
                             >
                               x
                             </button>
@@ -2035,6 +2037,15 @@ export default function Home() {
                 />
               </label>
             </div>
+            {hasConsignationSupport && canAdmin && (
+              <button
+                type="button"
+                className="mini-action danger-action"
+                onClick={() => deleteEvidence(consignationSupport!.id)}
+              >
+                Eliminar soporte consignacion
+              </button>
+            )}
             <div className="calc-list">
               <span>Total gastado</span>
               <strong>{formatMoney(totals.spent, draft.currency)}</strong>

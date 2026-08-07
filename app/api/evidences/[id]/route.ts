@@ -49,11 +49,8 @@ export async function DELETE(_request: Request, context: RouteContext) {
     const { id } = await context.params;
     const db = getDb();
     const [evidence] = await db.select().from(evidences).where(eq(evidences.id, id));
-    if (evidence) {
-      const [settlement] = await db.select().from(settlements).where(eq(settlements.id, evidence.settlementId));
-      if (user.role !== "admin" && settlement?.ownerId !== user.id) {
-        return Response.json({ error: "No autorizado" }, { status: 403 });
-      }
+    if (user.role !== "admin") {
+      return Response.json({ error: "No autorizado" }, { status: 403 });
     }
     if (evidence) {
       await deleteEvidenceFile(evidence.r2Key);
