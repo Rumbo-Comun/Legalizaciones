@@ -1164,12 +1164,18 @@ export default function Home() {
       y += 24;
       doc.setFontSize(10);
 
-      if (saved.evidences.length === 0) {
+      const orderedEvidences = [...saved.evidences].sort((left, right) => {
+        if (!left.expenseId && right.expenseId) return -1;
+        if (left.expenseId && !right.expenseId) return 1;
+        return 0;
+      });
+
+      if (orderedEvidences.length === 0) {
         doc.setFont("helvetica", "normal");
         doc.text("No hay evidencias cargadas.", margin, y);
       }
 
-      for (const [index, evidence] of saved.evidences.entries()) {
+      for (const [index, evidence] of orderedEvidences.entries()) {
         const anexoTitle = `Anexo ${index + 1}: ${evidence.fileName}`;
 
         try {
