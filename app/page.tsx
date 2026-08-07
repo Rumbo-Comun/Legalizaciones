@@ -1257,11 +1257,12 @@ export default function Home() {
         }
       }
 
-      const fileName = `${saved.fundType}-${saved.fundCode || saved.projectName || saved.id}`
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
+      const requestId = saved.fundCode || saved.id;
+      const fileName = `Informe Legalizacion - ${requestId}`
+        .replace(/[^a-zA-Z0-9\s-]+/g, "")
+        .replace(/\s+/g, " ")
         .replace(/^-|-$/g, "");
-      doc.save(`informe-${fileName || "fondo"}.pdf`);
+      doc.save(`${fileName || "Informe Legalizacion"}.pdf`);
       setNotice("Informe PDF generado.");
     } finally {
       setPdfBusy(false);
