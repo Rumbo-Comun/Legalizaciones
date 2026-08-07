@@ -44,6 +44,7 @@ type ReviewComment = {
 
 type CurrencyCode = "COP" | "USD";
 type StatusFilter = "all" | "active" | "pending" | "completed" | "closed";
+type ActiveView = "dashboard" | "new" | "requestInfo" | "status" | "employeeCosts" | "reports" | "admin";
 
 type AppUser = {
   id: string;
@@ -202,6 +203,21 @@ function fundBalance(record: Pick<Settlement, "advanceCents" | "cashReturnedCent
   return record.advanceCents - sumSpent(record.expenses) + sumRefunded(record.expenses) - record.cashReturnedCents;
 }
 
+function parseDateOnly(value: string) {
+  if (!value) return null;
+  const [year, month, day] = value.split("-").map(Number);
+  if (!year || !month || !day) return null;
+  return new Date(year, month - 1, day);
+}
+
+function daysUntil(value: string) {
+  const target = parseDateOnly(value);
+  if (!target) return null;
+  const today = new Date();
+  const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  return Math.ceil((target.getTime() - start.getTime()) / 86400000);
+}
+
 function finalBalanceText(record: Settlement) {
   const balance = fundBalance(record);
   if (balance > 0) return `Usted debe devolver ${formatMoney(balance, record.currency)}.`;
@@ -271,7 +287,7 @@ export default function Home() {
   const [validationModal, setValidationModal] = useState<{ title: string; messages: string[] } | null>(null);
   const [uploading, setUploading] = useState("");
   const [pdfBusy, setPdfBusy] = useState(false);
-  const [activeView, setActiveView] = useState<"dashboard" | "new" | "requestInfo" | "status" | "reports" | "admin">("dashboard");
+  const [activeView, setActiveView] = useState<ActiveView>("dashboard");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [typeFilter, setTypeFilter] = useState("all");
   const [requestSearch, setRequestSearch] = useState("");
@@ -384,6 +400,50 @@ export default function Home() {
       stats[currency].count += 1;
     }
     return [stats.COP, stats.USD];
+  }, [records]);
+  const employeeCostRows = useMemo(() => {
+    type MoneyBucket = { requested: number; legalized: number; pending: number };
+    const emptyMoney = (): Record<CurrencyCode, MoneyBucket> => ({
+      COP: { requested: 0, legalized: 0, pending: 0 },
+      USD: { requested: 0, legalized: 0, pending: 0 },
+    });
+    const rows = new Map<
+      string,
+      {
+        employee: string;
+        department: string;
+        count: number;
+        overdue: number;
+        dueSoon: number;
+        money: Record<CurrencyCode, MoneyBucket>;
+      }
+    >();
+    for (const record of records) {
+      const employee = record.employee || "Sin funcionario";
+      const department = record.department || "Sin centro de costo";
+      const key = `${employee.toLowerCase()}|${department.toLowerCase()}`;
+      const current = rows.get(key) ?? {
+        employee,
+        department,
+        count: 0,
+        overdue: 0,
+        dueSoon: 0,
+        money: emptyMoney(),
+      };
+      const currency = coerceCurrency(record.currency);
+      const legalized = Math.max(0, sumSpent(record.expenses) - sumRefunded(record.expenses));
+      const pending = Math.max(0, record.advanceCents - legalized - record.cashReturnedCents);
+      const days = daysUntil(record.periodEnd);
+      const isOpen = record.status !== "enviado gerencia";
+      current.count += 1;
+      current.money[currency].requested += record.advanceCents;
+      current.money[currency].legalized += legalized;
+      current.money[currency].pending += pending;
+      if (isOpen && days !== null && days < 0) current.overdue += 1;
+      if (isOpen && days !== null && days >= 0 && days <= 3) current.dueSoon += 1;
+      rows.set(key, current);
+    }
+    return [...rows.values()].sort((left, right) => right.count - left.count || left.employee.localeCompare(right.employee));
   }, [records]);
   const reportRows = useMemo(() => {
     const categories = new Map<string, { category: string; currency: CurrencyCode; count: number; amount: number }>();
@@ -1360,7 +1420,7 @@ export default function Home() {
           <div className="nav-group">
             <button
               type="button"
-              className={["new", "requestInfo", "status"].includes(activeView) ? "active nav-parent" : "nav-parent"}
+              className={["new", "requestInfo", "status", "employeeCosts"].includes(activeView) ? "active nav-parent" : "nav-parent"}
               onClick={() => setRequestsOpen((open) => !open)}
               aria-expanded={requestsOpen}
             >
@@ -1392,6 +1452,19 @@ export default function Home() {
                   <span>Gestion de solicitudes</span>
                   <strong>{dashboardStats.pending}</strong>
                 </button>
+                {currentUser.role === "revisor" && (
+                  <button
+                    type="button"
+                    className={activeView === "employeeCosts" ? "active" : ""}
+                    onClick={() => {
+                      setRequestsOpen(true);
+                      setActiveView("employeeCosts");
+                    }}
+                  >
+                    <span>Solicitud por funcionario</span>
+                    <strong>{employeeCostRows.length}</strong>
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -1425,6 +1498,7 @@ export default function Home() {
               {activeView === "new" && "Solicitud nueva"}
               {activeView === "requestInfo" && "Informacion de solicitud"}
               {activeView === "status" && "Gestion de solicitudes"}
+              {activeView === "employeeCosts" && "Solicitud por funcionario"}
               {activeView === "reports" && "Reportes"}
               {activeView === "admin" && "Administrador"}
             </h1>
@@ -2190,6 +2264,67 @@ export default function Home() {
                     </article>
                   );
                 })}
+              </div>
+            )}
+          </section>
+        )}
+
+        {activeView === "employeeCosts" && currentUser.role === "revisor" && (
+          <section className="panel employee-cost-board">
+            <div className="section-title">
+              <div>
+                <h2>Solicitud por funcionario</h2>
+                <span>Centro de costo y avance de legalizacion por moneda</span>
+              </div>
+              <span>{employeeCostRows.length} funcionarios</span>
+            </div>
+
+            {employeeCostRows.length === 0 && (
+              <div className="empty-state">No hay solicitudes asignadas para analizar.</div>
+            )}
+
+            {employeeCostRows.length > 0 && (
+              <div className="employee-cost-grid">
+                {employeeCostRows.map((row) => (
+                  <article className="employee-cost-card" key={`${row.employee}-${row.department}`}>
+                    <div className="employee-cost-head">
+                      <div>
+                        <strong>{row.employee}</strong>
+                        <span>{row.department}</span>
+                      </div>
+                      <span>{row.count} solicitudes</span>
+                    </div>
+
+                    <div className="employee-cost-money">
+                      {(["COP", "USD"] as CurrencyCode[]).map((currency) => (
+                        <dl key={currency}>
+                          <dt>{currency}</dt>
+                          <dd>
+                            <span>Solicitado</span>
+                            <strong>{formatMoney(row.money[currency].requested, currency)}</strong>
+                          </dd>
+                          <dd>
+                            <span>Legalizado</span>
+                            <strong>{formatMoney(row.money[currency].legalized, currency)}</strong>
+                          </dd>
+                          <dd>
+                            <span>Por legalizar</span>
+                            <strong>{formatMoney(row.money[currency].pending, currency)}</strong>
+                          </dd>
+                        </dl>
+                      ))}
+                    </div>
+
+                    <div className="employee-cost-alerts">
+                      <span className={row.overdue ? "alert-danger" : ""}>
+                        {row.overdue} vencidas sin legalizar
+                      </span>
+                      <span className={row.dueSoon ? "alert-warning" : ""}>
+                        {row.dueSoon} proximas a vencer
+                      </span>
+                    </div>
+                  </article>
+                ))}
               </div>
             )}
           </section>
