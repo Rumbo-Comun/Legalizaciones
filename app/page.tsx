@@ -285,6 +285,7 @@ export default function Home() {
   }, [draft]);
   const hasConsignation = Boolean(activeId);
   const draftClosed = draft.status === "enviado gerencia";
+  const canAdmin = currentUser?.role === "admin";
   const canEdit = Boolean(currentUser && !draftClosed && (currentUser.role === "admin" || draft.ownerId === currentUser.id || !activeId));
   const requestInfoLocked = Boolean(activeId && draft.status !== "borrador");
   const canEditRequestInfo = Boolean(canEdit && !requestInfoLocked);
@@ -295,12 +296,11 @@ export default function Home() {
   );
   const isOttoUser = Boolean(currentUser?.name.toUpperCase().includes("OTTO"));
   const canSubmitForApproval = canEditRequestInfo && (!activeId || draft.status === "borrador");
-  const canApproveConsignation = canReviewFund && isOttoUser && draft.status === "pendiente aprobacion";
+  const canApproveConsignation = canReviewFund && (isOttoUser || canAdmin) && draft.status === "pendiente aprobacion";
   const canAttachSupport = !draftClosed && (canEdit || canReviewFund);
   const consignationSupport = draft.evidences.find((evidence) => !evidence.expenseId);
   const hasConsignationSupport = Boolean(consignationSupport);
   const canSave = !draftClosed && (canEdit || canReviewFund);
-  const canAdmin = currentUser?.role === "admin";
   const canManageAccess = canAdmin || isOttoUser;
   const adminStats = useMemo(() => {
     const activeUsers = users.filter((user) => user.active !== 0).length;

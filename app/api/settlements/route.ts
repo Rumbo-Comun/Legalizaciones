@@ -107,7 +107,11 @@ function cleanExpense(expense: Partial<ExpensePayload>, settlementId: string): E
 
 async function assignReviewers(settlementId: string) {
   const db = getDb();
-  const reviewerRows = await db.select().from(users).where(eq(users.role, "revisor"));
+  const allUsers = await db.select().from(users);
+  const adminReviewers = allUsers.filter((user) => user.active !== 0 && user.role === "admin");
+  const reviewerRows = adminReviewers.length
+    ? adminReviewers
+    : allUsers.filter((user) => user.active !== 0 && user.role === "revisor");
   const current = await db.select().from(settlementAccess).where(eq(settlementAccess.settlementId, settlementId));
   const currentIds = new Set(current.map((row) => row.userId));
   for (const reviewer of reviewerRows) {
