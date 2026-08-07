@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Legalizacion de caja menor",
-  description: "Registro, evidencias y control de gastos de caja menor.",
+  title: "Sistema de Legalización de Gastos - USC",
+  description: "Registro, evidencias y control de legalizaciones de gastos USCOM.",
   icons: {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",
